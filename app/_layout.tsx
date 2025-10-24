@@ -1,0 +1,50 @@
+// Arquivo: app/_layout.tsx (VERSÃO FINAL COM TIPAGEM)
+
+import { Session } from '@supabase/supabase-js'; // <--- 1. IMPORTE O TIPO AQUI
+import { Slot, useRouter, useSegments } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
+import { supabase } from '../supabaseClient';
+
+export default function RootLayout() {
+  //  2. ADICIONE O TIPO <Session | null> AQUI  --->
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (loading) return;
+
+    const inTabsGroup = segments[0] === '(tabs)';
+
+    if (session && !inTabsGroup) {
+      router.replace('/(tabs)/agenda'); 
+    } else if (!session && segments[0] !== '(auth)') { // Pequena melhoria para evitar loop
+      router.replace('/(auth)/login');
+    }
+  }, [session, loading, segments]);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', backgroundColor: '#121212' }}>
+        <ActivityIndicator size="large" color="#E50914" />
+      </View>
+    );
+  }
+  
+  return <Slot />;
+}
