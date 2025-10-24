@@ -55,12 +55,8 @@ export default function TabsLayout() {
       {/* Esconde a tela de agendamentos futuros da barra de abas */}
       <Tabs.Screen name="meus-agendamentos" options={{ href: null }} />
 
-      {/* ... outras telas escondidas ... */}
+      {/* MUDANÇA APLICADA AQUI: Esconde a tela de histórico da barra de abas */}
       <Tabs.Screen name="historico-agendamentos" options={{ href: null }} />
-
-      {/* MUDANÇA AQUI: Esconde a tela de edição da barra de abas */}
-      <Tabs.Screen name="editar-perfil" options={{ href: null }} />
-
     </Tabs>
   );
 }

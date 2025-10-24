@@ -1,0 +1,120 @@
+// Arquivo: app/(tabs)/servicos.js (MODIFICADO)
+
+import { useRouter } from 'expo-router'; // 1. Importe o useRouter para navegação
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { supabase } from '../../supabaseClient';
+
+export default function ServicosScreen() {
+  const [servicos, setServicos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter(); // 2. Inicialize o router
+
+  useEffect(() => {
+    fetchServicos();
+  }, []);
+
+  async function fetchServicos() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('servicos')
+      .select('*')
+      .order('preco', { ascending: true });
+
+    if (error) {
+      Alert.alert('Erro ao buscar serviços', error.message);
+    } else {
+      setServicos(data);
+    }
+    setLoading(false);
+  }
+
+  // 3. Função que será chamada ao clicar em um serviço
+  const handleSelectService = (servico) => {
+    // Navega para a aba 'agenda' e passa os dados do serviço como parâmetros
+    router.push({
+      pathname: '/(tabs)/agenda',
+      params: { 
+        servicoId: servico.id, 
+        servicoNome: servico.nome 
+      },
+    });
+  };
+
+  // 4. Transforme o ServicoItem em um botão
+  const ServicoItem = ({ item }) => (
+    <TouchableOpacity style={styles.itemContainer} onPress={() => handleSelectService(item)}>
+      <View>
+        <Text style={styles.itemNome}>{item.nome}</Text>
+        <Text style={styles.itemDescricao}>{item.descricao}</Text>
+      </View>
+      <Text style={styles.itemPreco}>
+        {Number(item.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#E50914" />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Escolha o Serviço</Text>
+      <FlatList
+        data={servicos}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={ServicoItem}
+        style={styles.list}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#121212',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+    marginVertical: 20,
+  },
+  list: {
+    width: '100%',
+    paddingHorizontal: 10,
+  },
+  itemContainer: {
+    backgroundColor: '#1E1E1E',
+    padding: 20,
+    marginVertical: 8,
+    borderRadius: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  itemNome: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  itemDescricao: {
+    color: '#A0A0A0',
+    fontSize: 14,
+    marginTop: 4,
+  },
+  itemPreco: {
+    color: '#34D399',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+});

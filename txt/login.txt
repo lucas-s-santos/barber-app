@@ -1,0 +1,124 @@
+// Arquivo: app/(auth)/login.tsx (MODIFICADO COM SUA LOGO)
+
+import React, { useState } from 'react';
+// 1. Adicione 'Image' à lista de imports
+import { Alert, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { supabase } from '../../supabaseClient';
+
+export default function LoginScreen() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function signInWithEmail() {
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email,
+      password: password,
+    });
+    if (error) Alert.alert("Erro no Login", error.message);
+    setLoading(false);
+  }
+
+  async function signUpWithEmail() {
+    setLoading(true);
+    const { error } = await supabase.auth.signUp({
+      email: email,
+      password: password,
+    });
+    if (error) {
+      Alert.alert("Erro no Cadastro", error.message);
+    } else {
+      Alert.alert("Cadastro realizado!", "Verifique seu e-mail para confirmar a conta (se habilitado).");
+    }
+    setLoading(false);
+  }
+
+  return (
+    <View style={styles.container}>
+      {/* 2. Adicione o componente Image aqui, apontando para sua logo.jpg */}
+      <Image
+        source={require('../../assets/images/logo.jpg')}
+        style={styles.logo}
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        placeholderTextColor="#888"
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Senha"
+        placeholderTextColor="#888"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+      />
+      <TouchableOpacity style={styles.button} onPress={signInWithEmail} disabled={loading}>
+        <Text style={styles.buttonText}>{loading ? 'Entrando...' : 'Entrar'}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={[styles.button, styles.buttonOutline]} onPress={signUpWithEmail} disabled={loading}>
+        <Text style={styles.buttonOutlineText}>{loading ? 'Cadastrando...' : 'Cadastrar'}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  // 3. Adicione o estilo para a sua logo
+  logo: {
+    width: 150,
+    height: 150,
+    resizeMode: 'contain',
+    marginBottom: 20, // Diminuí um pouco a margem
+    alignSelf: 'center',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#121212',
+    padding: 20,
+    justifyContent: 'center',
+  },
+  header: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+    marginBottom: 30, // Diminuí um pouco a margem
+  },
+  input: {
+    backgroundColor: '#1E1E1E',
+    color: 'white',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 15,
+    fontSize: 16,
+  },
+  button: {
+    backgroundColor: '#E50914',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  buttonOutline: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: '#E50914',
+  },
+  buttonOutlineText: {
+    color: '#E50914',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+});

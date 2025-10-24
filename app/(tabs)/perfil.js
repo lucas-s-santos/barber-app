@@ -1,80 +1,94 @@
-// Arquivo: app/(tabs)/perfil.js (COM BOTÃO DE HISTÓRICO)
-
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../supabaseClient';
 
 export default function PerfilScreen() {
-  const [user, setUser] = useState(null);
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (data) {
-        setUser(data.user);
-      }
-    };
-    fetchUser();
+  const fetchProfile = useCallback(async () => {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.replace('/(auth)/login');
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('perfis')
+      .select('nome_completo, foto_base64')
+      .eq('id', user.id)
+      .single();
+      
+    if (error) {
+      console.log("Erro ao buscar perfil:", error.message);
+    }
+    setProfile({ ...user, ...data });
+    setLoading(false);
   }, []);
+
+  useFocusEffect(fetchProfile);
+
+  if (loading || !profile) {
+    return <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#E50914" /></View>;
+  }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Meu Perfil</Text>
-      
-      <View style={styles.infoContainer}>
-        <Text style={styles.label}>Email:</Text>
-        <Text style={styles.email}>{user ? user.email : 'Carregando...'}</Text>
+      <View style={styles.header}>
+        {profile.foto_base64 ? (
+          <Image source={{ uri: `data:image/jpeg;base64,${profile.foto_base64}` }} style={styles.avatar} />
+        ) : (
+          <View style={styles.avatarPlaceholder}>
+            <Ionicons name="person" size={60} color="#555" />
+          </View>
+        )}
+        <Text style={styles.nome}>{profile.nome_completo || 'Usuário'}</Text>
+        <Text style={styles.email}>{profile.email}</Text>
       </View>
-      
-      <TouchableOpacity 
-        style={styles.menuButton} 
-        onPress={() => router.push('/(tabs)/meus-agendamentos')}
-      >
-        <Ionicons name="list-outline" size={24} color="white" />
-        <Text style={styles.menuButtonText}>Meus Próximos Agendamentos</Text>
+
+      {/* Botão para Editar Perfil */}
+      <TouchableOpacity style={styles.editButton} onPress={() => router.push('/(tabs)/editar-perfil')}>
+        <Ionicons name="pencil-outline" size={20} color="white" />
+        <Text style={styles.editButtonText}>Editar Perfil</Text>
       </TouchableOpacity>
 
-      {/* MUDANÇA APLICADA AQUI: Adicionado o botão de Histórico */}
-      <TouchableOpacity 
-        style={[styles.menuButton, {marginTop: 15}]} 
-        onPress={() => router.push('/(tabs)/historico-agendamentos')}
-      >
-        <Ionicons name="time-outline" size={24} color="white" />
-        <Text style={styles.menuButtonText}>Histórico de Agendamentos</Text>
-      </TouchableOpacity>
+      <View style={styles.menuContainer}>
+        <TouchableOpacity style={styles.menuButton} onPress={() => router.push('/(tabs)/meus-agendamentos')}>
+          <Ionicons name="list-outline" size={24} color="white" />
+          <Text style={styles.menuButtonText}>Meus Próximos Agendamentos</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity 
-        style={[styles.menuButton, {marginTop: 30}]} // Aumentei a margem para separar do botão de sair
-        onPress={() => supabase.auth.signOut()}
-      >
+        <TouchableOpacity style={styles.menuButton} onPress={() => router.push('/(tabs)/historico-agendamentos')}>
+          <Ionicons name="time-outline" size={24} color="white" />
+          <Text style={styles.menuButtonText}>Histórico de Agendamentos</Text>
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity style={styles.signOutButton} onPress={() => supabase.auth.signOut()}>
         <Ionicons name="log-out-outline" size={24} color="#E50914" />
-        <Text style={[styles.menuButtonText, {color: '#E50914'}]}>Sair da Conta</Text>
+        <Text style={styles.signOutButtonText}>Sair da Conta</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 20, justifyContent: 'center' },
-  title: { fontSize: 28, fontWeight: 'bold', color: 'white', marginBottom: 40, textAlign: 'center' },
-  infoContainer: { width: '100%', marginBottom: 40, alignItems: 'center' },
-  label: { fontSize: 16, color: 'gray' },
-  email: { fontSize: 20, color: 'white', fontWeight: '500', marginTop: 5 },
-  menuButton: {
-    backgroundColor: '#1E1E1E',
-    width: '100%',
-    padding: 20,
-    borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  menuButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 16,
-    marginLeft: 15,
-  },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: '#121212', padding: 20, justifyContent: 'space-between' },
+  header: { alignItems: 'center', marginTop: 40 },
+  avatar: { width: 120, height: 120, borderRadius: 60 },
+  avatarPlaceholder: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#1E1E1E', justifyContent: 'center', alignItems: 'center' },
+  nome: { color: 'white', fontSize: 24, fontWeight: 'bold', marginTop: 15 },
+  email: { color: 'gray', fontSize: 16, marginTop: 5 },
+  editButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#333', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 20, alignSelf: 'center', marginTop: 20 },
+  editButtonText: { color: 'white', fontSize: 16, marginLeft: 8 },
+  menuContainer: { width: '100%', marginTop: 20 },
+  menuButton: { backgroundColor: '#1E1E1E', padding: 20, borderRadius: 10, flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
+  menuButtonText: { color: 'white', fontWeight: '600', fontSize: 16, marginLeft: 15 },
+  signOutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15, borderRadius: 10, borderWidth: 2, borderColor: '#E50914', marginBottom: 20 },
+  signOutButtonText: { color: '#E50914', fontWeight: '700', fontSize: 16, marginLeft: 10 },
 });

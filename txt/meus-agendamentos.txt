@@ -1,34 +1,33 @@
+// Arquivo: meus-agendamentos.js (VERSÃO FINAL COM RPC E SEM ALERT DE CONFIRMAÇÃO)
+
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useAlert } from '../../contexts/AlertContext'; // 1. Importar
+import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../supabaseClient';
 
 export default function MeusAgendamentosScreen() {
   const [agendamentos, setAgendamentos] = useState([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const showAlert = useAlert(); // 2. Inicializar
 
   const fetchAgendamentos = useCallback(async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      showAlert("Erro de Autenticação", "Usuário não encontrado. Por favor, faça login novamente.", [{ text: 'OK', onPress: () => supabase.auth.signOut() }]);
+      Alert.alert("Erro", "Usuário não encontrado.");
       setLoading(false);
       return;
     }
     const hoje = new Date().toISOString();
     const { data, error } = await supabase
       .from('agendamentos')
-      .select(`id, data_agendamento, servicos ( nome ), barbeiros ( perfis ( nome_completo ) )`)
-      .eq('cliente_id', user.id)
+      .select(`id, data_agendamento, servicos ( nome, preco )`)
+      .eq('user_id', user.id)
       .gte('data_agendamento', hoje)
       .order('data_agendamento', { ascending: true });
-
     if (error) {
-      showAlert("Erro", `Não foi possível buscar seus agendamentos: ${error.message}`, [{ text: 'Tentar Novamente', onPress: fetchAgendamentos }]);
+      Alert.alert("Erro ao buscar agendamentos", error.message);
     } else {
       setAgendamentos(data);
     }
@@ -37,45 +36,36 @@ export default function MeusAgendamentosScreen() {
 
   useFocusEffect(fetchAgendamentos);
 
-  const handleCancel = (agendamentoId) => {
-    // 3. Substituir o Alert.alert pela chamada ao showAlert
-    showAlert(
-      "Confirmar Cancelamento",
-      "Você tem certeza que deseja cancelar este agendamento? Esta ação não pode ser desfeita.",
-      [
-        { text: "Não", style: 'cancel' }, // Botão "Não"
-        { 
-          text: "Sim, cancelar", 
-          style: 'destructive', 
-          onPress: async () => {
-            const { error } = await supabase
-              .from('agendamentos')
-              .delete()
-              .eq('id', agendamentoId);
+  // ================================================================
+  // MUDANÇA FINAL: A LÓGICA DE DELETAR FOI SIMPLIFICADA
+  // ================================================================
+  const handleCancel = async (agendamentoId) => {
+    console.log("Tentando cancelar o agendamento ID:", agendamentoId); // Para vermos no console
 
-            if (error) {
-              showAlert("Erro", `Não foi possível cancelar o agendamento: ${error.message}`, [{ text: 'OK' }]);
-            } else {
-              showAlert("Sucesso!", "Seu agendamento foi cancelado.", [{ text: 'OK' }]);
-              fetchAgendamentos(); // Atualiza a lista
-            }
-          }
-        }
-      ]
-    );
+    // Chama a função do Supabase DIRETAMENTE, sem confirmação
+    const { error } = await supabase.rpc('cancelar_meu_agendamento', {
+      agendamento_id: agendamentoId
+    });
+
+    if (error) {
+      // Se der erro, AGORA vamos mostrar um alerta
+      Alert.alert("Erro ao cancelar", `Ocorreu um erro no servidor: ${error.message}`);
+    } else {
+      // Se der certo, mostramos o sucesso e atualizamos a lista
+      Alert.alert("Sucesso", "Seu agendamento foi cancelado.");
+      fetchAgendamentos(); 
+    }
   };
 
   const AgendamentoItem = ({ item }) => {
     const data = new Date(item.data_agendamento);
     const dataFormatada = data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const horaFormatada = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
-    const nomeBarbeiro = item.barbeiros?.perfis?.nome_completo || 'Barbeiro';
+    const horaFormatada = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
     return (
       <View style={styles.itemContainer}>
         <View style={styles.itemDetails}>
           <Text style={styles.itemServico}>{item.servicos.nome}</Text>
-          <Text style={styles.itemBarbeiro}>com {nomeBarbeiro}</Text>
           <Text style={styles.itemData}>{dataFormatada} às {horaFormatada}</Text>
         </View>
         <TouchableOpacity style={styles.cancelButton} onPress={() => handleCancel(item.id)}>
@@ -86,14 +76,14 @@ export default function MeusAgendamentosScreen() {
   };
 
   if (loading) {
-    return <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#E50914" /></View>;
+    return <View style={styles.container}><ActivityIndicator size="large" color="#E50914" /></View>;
   }
 
   return (
     <View style={styles.container}>
       <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
         <Ionicons name="arrow-back" size={24} color="white" />
-        <Text style={styles.backButtonText}>Voltar</Text>
+        <Text style={styles.backButtonText}>Voltar para o Perfil</Text>
       </TouchableOpacity>
       <Text style={styles.title}>Meus Próximos Agendamentos</Text>
       <FlatList
@@ -108,16 +98,14 @@ export default function MeusAgendamentosScreen() {
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
   container: { flex: 1, backgroundColor: '#121212', paddingTop: 40 },
-  title: { fontSize: 24, fontWeight: 'bold', color: 'white', textAlign: 'center', marginVertical: 20, marginTop: 60 },
+  title: { fontSize: 24, fontWeight: 'bold', color: 'white', textAlign: 'center', marginVertical: 20 },
   itemContainer: { backgroundColor: '#1E1E1E', padding: 20, marginVertical: 8, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   itemDetails: { flex: 1 },
   itemServico: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-  itemBarbeiro: { color: '#34D399', fontSize: 14, fontStyle: 'italic', marginVertical: 4 },
   itemData: { color: 'gray', fontSize: 14, marginTop: 5 },
   cancelButton: { padding: 10 },
   placeholderText: { color: 'gray', textAlign: 'center', marginTop: 50, fontSize: 16 },
-  backButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 10, position: 'absolute', top: 40, left: 0, zIndex: 1 },
+  backButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 10 },
   backButtonText: { color: 'white', fontSize: 16, marginLeft: 10 },
 });
