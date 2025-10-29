@@ -1,14 +1,12 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
-import { useAlert } from '../../contexts/AlertContext';
 import { supabase } from '../../supabaseClient';
 
 export default function AgendaScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const showAlert = useAlert();
   const hoje = new Date().toISOString().split('T')[0];
 
   const [servico, setServico] = useState(null);
@@ -31,18 +29,21 @@ export default function AgendaScreen() {
         .eq('papel', 'barbeiro');
 
       if (error) {
-        showAlert('Erro', 'Não foi possível carregar a lista de barbeiros.');
+        Alert.alert('Erro', 'Não foi possível carregar a lista de barbeiros.');
       } else {
         setBarbeiros(data);
       }
     };
 
     fetchBarbeiros();
-  }, [showAlert]);
+  }, []);
 
   useFocusEffect(useCallback(() => {
     if (params.servicoId && params.servicoNome && params.servicoDuracao) {
       setServico({ id: params.servicoId, nome: params.servicoNome, duracao: parseInt(params.servicoDuracao, 10) });
+    }
+    if (params.barbeiroId && params.barbeiroNome) {
+      setBarbeiroSelecionado({ id: params.barbeiroId, nome_completo: params.barbeiroNome });
     }
   }, [params]));
 
@@ -58,55 +59,44 @@ export default function AgendaScreen() {
     });
     
     if (error) {
-      showAlert("Erro", `Não foi possível buscar os horários: ${error.message}`);
+      Alert.alert("Erro", `Não foi possível buscar os horários: ${error.message}`);
     } else {
-      const horarios = (data || []).map(item => item.horario_inicio.substring(0, 5));
-      setHorariosDisponiveis(horarios);
+      setHorariosDisponiveis(data || []);
     }
     setLoadingHorarios(false);
-  }, [servico, barbeiroSelecionado, showAlert]);
+  }, [servico, barbeiroSelecionado]);
 
-  const onDayPress = (day) => {
-    setSelectedDate(day.dateString);
-  };
+  const onDayPress = (day) => setSelectedDate(day.dateString);
   
   useEffect(() => {
     if (selectedDate && barbeiroSelecionado) {
       gerarHorarios(selectedDate);
     }
-  }, [selectedDate, barbeiroSelecionado, gerarHorarios]);
+  }, [selectedDate, gerarHorarios, barbeiroSelecionado]);
 
   const handleAgendar = async () => {
     if (!horarioParaConfirmar || !servico || !barbeiroSelecionado) return;
-
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      showAlert("Erro", "Você precisa estar logado para agendar.");
+      Alert.alert("Erro", "Você precisa estar logado para agendar.");
       return;
     }
-
     const dataHoraAgendamento = `${selectedDate}T${horarioParaConfirmar}:00`;
     
-    // =================================================================
-    // <<< ESTA É A ÚNICA MUDANÇA NESTE ARQUIVO >>>
-    // Todo novo agendamento agora é criado como 'pendente'.
-    // =================================================================
     const { error } = await supabase.from('agendamentos').insert({
       cliente_id: user.id,
       barbeiro_id: barbeiroSelecionado.id,
       servico_id: servico.id,
       data_agendamento: dataHoraAgendamento,
-      status: 'pendente' 
+      status: 'pendente'
     });
 
     setModalVisible(false);
     if (error) {
-      showAlert("Erro ao Agendar", error.message);
+      Alert.alert("Erro ao Agendar", error.message);
     } else {
-      showAlert("Solicitação Enviada!", `Seu pedido de agendamento foi enviado com sucesso. Aguarde a confirmação do barbeiro.`, [
-        { text: 'OK', onPress: () => router.push('/(tabs)/meus-agendamentos') }
-      ]);
-      gerarHorarios(selectedDate);
+      Alert.alert("Solicitação Enviada!", `Seu pedido de horário para ${servico.nome} com ${barbeiroSelecionado.nome_completo} foi enviado. Aguarde a confirmação do barbeiro.`);
+      router.push('/(tabs)/meus-agendamentos');
     }
   };
 
@@ -135,14 +125,14 @@ export default function AgendaScreen() {
             <Text style={styles.modalText}>
               Serviço: <Text style={{ fontWeight: 'bold' }}>{servico.nome}</Text>{'\n'}
               Barbeiro: <Text style={{ fontWeight: 'bold' }}>{barbeiroSelecionado?.nome_completo}</Text>{'\n'}
-              Data: <Text style={{ fontWeight: 'bold' }}>{new Date(selectedDate + 'T00:00:00').toLocaleDateString('pt-BR')}</Text> às <Text style={{ fontWeight: 'bold' }}>{horarioParaConfirmar}</Text>
+              Data: <Text style={{ fontWeight: 'bold' }}>{selectedDate}</Text> às <Text style={{ fontWeight: 'bold' }}>{horarioParaConfirmar}</Text>
             </Text>
             <View style={styles.modalButtonContainer}>
               <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setModalVisible(false)}>
                 <Text style={styles.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.modalButton, styles.confirmButton]} onPress={handleAgendar}>
-                <Text style={styles.confirmButtonText}>Solicitar</Text>
+                <Text style={styles.confirmButtonText}>Confirmar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -164,15 +154,35 @@ export default function AgendaScreen() {
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[
-                styles.selectorButton,
-                barbeiroSelecionado?.id === item.id && styles.selectorButtonSelected
-              ]}
-              onPress={() => setBarbeiroSelecionado(item)}
-            >
-              <Text style={styles.selectorButtonText}>{item.nome_completo}</Text>
-            </TouchableOpacity>
+            <View style={styles.barbeiroCard}>
+              <TouchableOpacity
+                style={[
+                  styles.selectorButton,
+                  barbeiroSelecionado?.id === item.id && styles.selectorButtonSelected
+                ]}
+                onPress={() => setBarbeiroSelecionado(item)}
+              >
+                <Text style={styles.selectorButtonText}>{item.nome_completo}</Text>
+              </TouchableOpacity>
+              
+              {/* --- A CORREÇÃO ESTÁ AQUI DENTRO --- */}
+              <TouchableOpacity
+                style={styles.detailsButton}
+                onPress={() => router.push({
+                  pathname: '/(tabs)/detalhes-barbeiro',
+                  // Usamos o objeto 'servico' que já existe no estado do componente
+                  params: { 
+                    barbeiroId: item.id, 
+                    servicoId: servico.id, 
+                    servicoNome: servico.nome, 
+                    servicoDuracao: servico.duracao 
+                  }
+                })}
+              >
+                <Text style={styles.detailsButtonText}>Ver Detalhes</Text>
+              </TouchableOpacity>
+              {/* ---------------------------------- */}
+            </View>
           )}
           ListEmptyComponent={<Text style={styles.placeholderText}>Nenhum barbeiro encontrado.</Text>}
         />
@@ -206,10 +216,30 @@ const styles = StyleSheet.create({
   containerCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212', padding: 20 },
   placeholderText: { color: 'gray', textAlign: 'center', marginTop: 20, fontSize: 16 },
   selectorContainer: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#333' },
-  selectorTitle: { color: 'white', fontSize: 18, fontWeight: 'bold', marginLeft: 15, marginBottom: 10, marginTop: 10 },
-  selectorButton: { backgroundColor: '#333', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 20, marginHorizontal: 5 },
+  selectorTitle: { color: 'white', fontSize: 18, fontWeight: 'bold', marginLeft: 15, marginBottom: 10 },
+  barbeiroCard: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 10,
+    marginHorizontal: 5,
+    overflow: 'hidden',
+  },
+  selectorButton: { 
+    backgroundColor: '#333', 
+    paddingVertical: 12, 
+    paddingHorizontal: 20,
+  },
   selectorButtonSelected: { backgroundColor: '#E50914' },
-  selectorButtonText: { color: 'white', fontSize: 14 },
+  selectorButtonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+  detailsButton: {
+    backgroundColor: '#2C2C2C',
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  detailsButtonText: {
+    color: '#34D399',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
   horariosContainer: { flex: 1, padding: 10 },
   horariosTitle: { color: 'white', fontSize: 18, fontWeight: 'bold', marginVertical: 15, textAlign: 'center' },
   horarioButton: { backgroundColor: '#333', padding: 10, borderRadius: 5, margin: 5, flex: 1, alignItems: 'center' },
@@ -226,7 +256,22 @@ const styles = StyleSheet.create({
   confirmButtonText: { color: 'white', fontWeight: 'bold', textAlign: 'center' },
   button: { backgroundColor: '#E50914', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 20, width: '80%' },
   buttonText: { color: 'white', fontWeight: '700', fontSize: 16 },
-  servicoInfoContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 15, backgroundColor: '#1E1E1E' },
-  servicoInfo: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-  trocarButtonText: { color: '#E50914', fontSize: 16, fontWeight: 'bold', marginLeft: 10 },
+  servicoInfoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 15,
+    backgroundColor: '#1E1E1E',
+  },
+  servicoInfo: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  trocarButtonText: {
+    color: '#E50914',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 10,
+  },
 });

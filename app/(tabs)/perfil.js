@@ -1,247 +1,100 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Calendar, LocaleConfig } from 'react-native-calendars';
-import { useAlert } from '../../contexts/AlertContext';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../supabaseClient';
 
-LocaleConfig.locales['pt-br'] = { monthNames: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'], dayNames: ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'], dayNamesShort: ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'], today: 'Hoje' };
-LocaleConfig.defaultLocale = 'pt-br';
-
-export default function PainelScreen() {
-  const [agenda, setAgenda] = useState([]);
+export default function PerfilScreen() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [dataSelecionada, setDataSelecionada] = useState(new Date().toISOString().split('T')[0]);
-  const showAlert = useAlert();
-  const [markedDates, setMarkedDates] = useState({});
-  const [currentMonth, setCurrentMonth] = useState({ month: new Date().getMonth() + 1, year: new Date().getFullYear() });
-  const [barbeiroId, setBarbeiroId] = useState(null); // Estado para guardar o ID do barbeiro
+  const [profile, setProfile] = useState(null);
 
-  const fetchAgendaDoDia = useCallback(async (id, data) => {
-    if (!id || !data) return;
+  const fetchProfile = useCallback(async () => {
     setLoading(true);
-    const { data: agendaData, error } = await supabase.rpc('get_agenda_barbeiro', {
-      p_barbeiro_id: id,
-      p_data: data,
-    });
-    if (error) showAlert('Erro', `Não foi possível buscar a agenda do dia: ${error.message}`);
-    else setAgenda(agendaData || []);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.replace('/(auth)/login');
+      return;
+    }
+    const { data } = await supabase.from('perfis').select('nome_completo, foto_base64, papel').eq('id', user.id).single();
+    setProfile({ ...user, ...data });
     setLoading(false);
-  }, [showAlert]);
+  }, []);
 
-  const fetchResumoMensal = useCallback(async (id, mes, ano) => {
-    if (!id) return;
-    const { data: resumoData, error } = await supabase.rpc('get_resumo_mensal_agenda', {
-      p_barbeiro_id: id,
-      p_mes: mes,
-      p_ano: ano,
-    });
+  useFocusEffect(fetchProfile);
 
-    if (error) {
-      showAlert('Erro', `Não foi possível buscar o resumo do mês: ${error.message}`);
-    } else {
-      const markers = {};
-      (resumoData || []).forEach(dia => {
-        let color = 'gray';
-        if (dia.status === 'livre') color = 'green';
-        if (dia.status === 'parcial') color = 'orange';
-        if (dia.status === 'lotado') color = 'red';
-        
-        markers[dia.dia] = {
-          marked: dia.status !== 'folga',
-          dotColor: color,
-        };
-      });
-      setMarkedDates(markers);
-    }
-  }, [showAlert]);
+  if (loading || !profile) {
+    return <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#E50914" /></View>;
+  }
 
-  useFocusEffect(
-    useCallback(() => {
-      const getBarbeiroEcarregarDados = async () => {
-        setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          setBarbeiroId(user.id); // Guarda o ID do usuário
-          fetchResumoMensal(user.id, currentMonth.month, currentMonth.year);
-          fetchAgendaDoDia(user.id, dataSelecionada);
-        } else {
-          setLoading(false);
-        }
-      };
-      getBarbeiroEcarregarDados();
-    }, [dataSelecionada, currentMonth, fetchAgendaDoDia, fetchResumoMensal])
-  );
-
-  // =================================================================
-  // <<< MUDANÇA 1: Função para o barbeiro atualizar o status >>>
-  // =================================================================
-  const handleUpdateStatus = async (id, novoStatus) => {
-    const { error } = await supabase
-      .from('agendamentos')
-      .update({ status: novoStatus })
-      .eq('id', id);
-  
-    if (error) {
-      showAlert('Erro', `Não foi possível atualizar o agendamento: ${error.message}`);
-    } else {
-      showAlert('Sucesso!', `O agendamento foi ${novoStatus === 'confirmado' ? 'confirmado' : 'recusado'}.`);
-      // Recarrega a agenda do dia para mostrar a mudança
-      fetchAgendaDoDia(barbeiroId, dataSelecionada);
-    }
-  };
-
-  const onDayPress = (day) => {
-    setDataSelecionada(day.dateString);
-  };
-
-  const onMonthChange = (month) => {
-    setCurrentMonth({ month: month.month, year: month.year });
-  };
-  
-  const finalMarkedDates = useMemo(() => {
-    return {
-      ...markedDates,
-      [dataSelecionada]: {
-        ...markedDates[dataSelecionada],
-        selected: true,
-        selectedColor: '#E50914',
-      }
-    };
-  }, [markedDates, dataSelecionada]);
-
-  // =================================================================
-  // <<< MUDANÇA 2: Componente de item atualizado com os botões de ação >>>
-  // =================================================================
-  const AgendaSlotItem = ({ item }) => {
-    const getSlotStyle = () => {
-      if (item.agendamento_status === 'pendente') return styles.slotPendente;
-      switch (item.status) {
-        case 'agendado': return styles.slotAgendado;
-        case 'almoco': return styles.slotAlmoco;
-        default: return styles.slotDisponivel;
-      }
-    };
-    const getIconName = () => {
-        switch (item.status) {
-          case 'agendado': return 'cut-outline';
-          case 'almoco': return 'restaurant-outline';
-          default: return 'ellipse-outline';
-        }
-    };
-    return (
-      <View style={[styles.slotContainer, getSlotStyle()]}>
-        <View style={styles.slotTimeContainer}>
-          <Ionicons name={getIconName()} size={18} color={item.status === 'disponivel' ? 'gray' : 'white'} />
-          <Text style={[styles.slotTime, item.status !== 'disponivel' && {color: 'white'}]}>{item.horario_inicio.substring(0, 5)}</Text>
-        </View>
-        <View style={styles.slotDetails}>
-          {item.status === 'agendado' && (
-            <>
-              <Text style={styles.servicoNome}>{item.servico_nome}</Text>
-              <Text style={styles.clienteNome}>Cliente: {item.cliente_nome}</Text>
-              
-              {/* Botões de Ação para agendamentos pendentes */}
-              {item.agendamento_status === 'pendente' && (
-                <View style={styles.actionButtonsContainer}>
-                  <TouchableOpacity 
-                    style={[styles.actionButton, styles.confirmButton]}
-                    onPress={() => handleUpdateStatus(item.agendamento_id, 'confirmado')}
-                  >
-                    <Ionicons name="checkmark-circle-outline" size={20} color="white" />
-                    <Text style={styles.actionButtonText}>Confirmar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.actionButton, styles.cancelButton]}
-                    onPress={() => handleUpdateStatus(item.agendamento_id, 'cancelado')}
-                  >
-                    <Ionicons name="close-circle-outline" size={20} color="white" />
-                    <Text style={styles.actionButtonText}>Recusar</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </>
-          )}
-          {item.status === 'almoco' && <Text style={styles.statusText}>Horário de Almoço</Text>}
-          {item.status === 'disponivel' && <Text style={styles.statusTextDisponivel}>Disponível</Text>}
-        </View>
-      </View>
-    );
-  };
+  const isBarbeiro = profile?.papel === 'barbeiro';
 
   return (
     <View style={styles.container}>
-      <Calendar
-        current={dataSelecionada}
-        onDayPress={onDayPress}
-        onMonthChange={onMonthChange}
-        markedDates={finalMarkedDates}
-        theme={{ backgroundColor: '#121212', calendarBackground: '#121212', textSectionTitleColor: '#b6c1cd', selectedDayBackgroundColor: '#E50914', selectedDayTextColor: '#ffffff', todayTextColor: '#E50914', dayTextColor: '#d9e1e8', textDisabledColor: '#2d4150', arrowColor: '#E50914', monthTextColor: 'white', indicatorColor: 'blue', dotColor: '#E50914', textDayFontWeight: '300', textMonthFontWeight: 'bold', textDayHeaderFontWeight: '300', textDayFontSize: 16, textMonthFontSize: 16, textDayHeaderFontSize: 14 }}
-      />
-      
-      <Text style={styles.title}>Detalhes do Dia</Text>
-      {loading ? (
-        <ActivityIndicator size="large" color="#E50914" style={{marginTop: 20}} />
-      ) : (
-        <FlatList
-          data={agenda}
-          keyExtractor={(item) => item.horario_inicio}
-          renderItem={AgendaSlotItem}
-          ListEmptyComponent={<Text style={styles.placeholderText}>Nenhuma configuração de horário encontrada para este dia.</Text>}
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
-      )}
+      <View style={styles.header}>
+        {profile.foto_base64 ? (
+          <Image source={{ uri: `data:image/jpeg;base64,${profile.foto_base64}` }} style={styles.avatar} />
+        ) : (
+          <View style={styles.avatarPlaceholder}><Ionicons name="person" size={60} color="#555" /></View>
+        )}
+        <Text style={styles.nome}>{profile.nome_completo || 'Usuário'}</Text>
+        <Text style={styles.email}>{profile.email}</Text>
+      </View>
+
+      <TouchableOpacity style={styles.editButton} onPress={() => router.push('/(tabs)/editar-perfil')}>
+        <Ionicons name="pencil-outline" size={20} color="white" />
+        <Text style={styles.editButtonText}>Editar Perfil</Text>
+      </TouchableOpacity>
+
+      <View style={styles.menuContainer}>
+        {isBarbeiro ? (
+          // --- MENU EXCLUSIVO DO BARBEIRO ---
+          <>
+            <TouchableOpacity style={styles.menuButton} onPress={() => router.push('/(tabs)/gerenciar-servicos')}>
+              <Ionicons name="build-outline" size={24} color="white" />
+              <Text style={styles.menuButtonText}>Gerenciar Serviços</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuButton} onPress={() => router.push('/(tabs)/configurar-horarios')}>
+              <Ionicons name="time-outline" size={24} color="white" />
+              <Text style={styles.menuButtonText}>Meus Horários</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          // --- MENU EXCLUSIVO DO CLIENTE ---
+          <>
+            <TouchableOpacity style={styles.menuButton} onPress={() => router.push('/(tabs)/meus-agendamentos')}>
+              <Ionicons name="list-outline" size={24} color="white" />
+              <Text style={styles.menuButtonText}>Meus Próximos Agendamentos</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuButton} onPress={() => router.push('/(tabs)/historico-agendamentos')}>
+              <Ionicons name="archive-outline" size={24} color="white" />
+              <Text style={styles.menuButtonText}>Histórico de Agendamentos</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+
+      <TouchableOpacity style={styles.signOutButton} onPress={() => supabase.auth.signOut()}>
+        <Ionicons name="log-out-outline" size={24} color="#E50914" />
+        <Text style={styles.signOutButtonText}>Sair da Conta</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
-// =================================================================
-// <<< MUDANÇA 3: Adicionar os novos estilos para os botões e slots pendentes >>>
-// =================================================================
 const styles = StyleSheet.create({
-    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
-    container: { flex: 1, backgroundColor: '#121212', paddingTop: 40 },
-    title: { fontSize: 20, fontWeight: 'bold', color: 'white', textAlign: 'center', marginVertical: 15 },
-    placeholderText: { color: 'gray', textAlign: 'center', marginTop: 50, fontSize: 16 },
-    slotContainer: { padding: 15, marginHorizontal: 10, marginVertical: 4, borderRadius: 10, flexDirection: 'row', alignItems: 'center', borderLeftWidth: 5, },
-    slotTimeContainer: { width: 80, flexDirection: 'row', alignItems: 'center', },
-    slotTime: { fontSize: 16, fontWeight: 'bold', marginLeft: 8, },
-    slotDetails: { flex: 1, marginLeft: 15, borderLeftWidth: 1, borderLeftColor: 'rgba(255, 255, 255, 0.2)', paddingLeft: 15, },
-    servicoNome: { color: 'white', fontSize: 16, fontWeight: 'bold', },
-    clienteNome: { color: '#E0E0E0', fontSize: 14, marginTop: 4, },
-    statusText: { color: 'white', fontSize: 16, fontStyle: 'italic', },
-    statusTextDisponivel: { color: 'gray', fontSize: 16, fontStyle: 'italic', },
-    slotDisponivel: { backgroundColor: '#1E1E1E', borderColor: '#333', },
-    slotAgendado: { backgroundColor: '#4d1a1a', borderColor: '#E50914', },
-    slotAlmoco: { backgroundColor: '#544a22', borderColor: '#f59e0b', },
-    // Novos Estilos
-    slotPendente: {
-      backgroundColor: '#544a22', // Laranja escuro
-      borderColor: '#f59e0b', // Laranja
-    },
-    actionButtonsContainer: {
-      flexDirection: 'row',
-      marginTop: 10,
-    },
-    actionButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 5,
-      paddingHorizontal: 10,
-      borderRadius: 5,
-      marginRight: 10,
-    },
-    actionButtonText: {
-      color: 'white',
-      marginLeft: 5,
-      fontSize: 12,
-      fontWeight: 'bold',
-    },
-    confirmButton: {
-      backgroundColor: '#2E7D32', // Verde
-    },
-    cancelButton: {
-      backgroundColor: '#C62828', // Vermelho
-    },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: '#121212', padding: 20, justifyContent: 'space-between' },
+  header: { alignItems: 'center', marginTop: 40 },
+  avatar: { width: 120, height: 120, borderRadius: 60 },
+  avatarPlaceholder: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#1E1E1E', justifyContent: 'center', alignItems: 'center' },
+  nome: { color: 'white', fontSize: 24, fontWeight: 'bold', marginTop: 15 },
+  email: { color: 'gray', fontSize: 16, marginTop: 5 },
+  editButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#333', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 20, alignSelf: 'center', marginTop: 20 },
+  editButtonText: { color: 'white', fontSize: 16, marginLeft: 8 },
+  menuContainer: { width: '100%', marginTop: 20, flex: 1 },
+  menuButton: { backgroundColor: '#1E1E1E', padding: 20, borderRadius: 10, flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
+  menuButtonText: { color: 'white', fontWeight: '600', fontSize: 16, marginLeft: 15 },
+  signOutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15, borderRadius: 10, borderWidth: 2, borderColor: '#E50914', marginBottom: 20 },
+  signOutButtonText: { color: '#E50914', fontWeight: '700', fontSize: 16, marginLeft: 10 },
 });

@@ -15,12 +15,11 @@ export default function MeusAgendamentosScreen() {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      showAlert("Erro de Autenticação", "Usuário não encontrado. Por favor, faça login novamente.", [{ text: 'OK', onPress: () => router.replace('/(auth)/login') }]);
       setLoading(false);
       return;
     }
-    const hoje = new Date().toISOString();
-
+    
+    // <<< MUDANÇA PRINCIPAL: A consulta agora usa a hora atual para buscar apenas o que é futuro >>>
     const { data, error } = await supabase
       .from('agendamentos')
       .select(`
@@ -28,14 +27,13 @@ export default function MeusAgendamentosScreen() {
         data_agendamento,
         status,
         servicos ( nome ),
-        barbeiro:perfis!barbeiro_id ( nome_completo )
+        perfis:barbeiro_id ( nome_completo )
       `)
       .eq('cliente_id', user.id)
-      // =================================================================
-      // <<< MUDANÇA 1: Buscar agendamentos pendentes E confirmados >>>
-      // =================================================================
-      .in('status', ['confirmado', 'pendente'])
-      .gte('data_agendamento', hoje)
+      .in('status', ['confirmado', 'pendente']) // Busca agendamentos confirmados OU pendentes
+      // A condição chave: busca apenas agendamentos cuja data/hora seja maior ou igual a AGORA.
+      // Isso move automaticamente os agendamentos passados para fora desta lista.
+      .gte('data_agendamento', new Date().toISOString()) 
       .order('data_agendamento', { ascending: true });
 
     if (error) {
@@ -44,29 +42,34 @@ export default function MeusAgendamentosScreen() {
       setAgendamentos(data);
     }
     setLoading(false);
-  }, [showAlert, router]);
+  }, [showAlert]);
 
   useFocusEffect(fetchAgendamentos);
 
-  const handleCancel = (agendamentoId) => {
+  const handleCancel = (agendamentoId, podeCancelar) => {
+    if (!podeCancelar) {
+      showAlert("Atenção", "Não é possível cancelar agendamentos com menos de 2 horas de antecedência.", [{ text: 'Entendi' }]);
+      return;
+    }
+
     showAlert(
       "Confirmar Cancelamento",
-      "Você tem certeza que deseja cancelar este agendamento?",
+      "Você tem certeza que deseja cancelar este agendamento? Esta ação não pode ser desfeita.",
       [
         { text: "Não", style: 'cancel' },
-        {
-          text: "Sim, cancelar",
-          style: 'destructive',
+        { 
+          text: "Sim, cancelar", 
+          style: 'destructive', 
           onPress: async () => {
             const { error } = await supabase
               .from('agendamentos')
-              .update({ status: 'cancelado' })
+              .delete()
               .eq('id', agendamentoId);
 
             if (error) {
-              showAlert("Erro", `Não foi possível cancelar o agendamento: ${error.message}`);
+              showAlert("Erro", `Não foi possível cancelar o agendamento: ${error.message}`, [{ text: 'OK' }]);
             } else {
-              showAlert("Sucesso!", "Seu agendamento foi cancelado.");
+              showAlert("Sucesso!", "Seu agendamento foi cancelado.", [{ text: 'OK' }]);
               fetchAgendamentos();
             }
           }
@@ -75,37 +78,51 @@ export default function MeusAgendamentosScreen() {
     );
   };
 
-  // =================================================================
-  // <<< MUDANÇA 2: Componente de item atualizado para mostrar o status >>>
-  // =================================================================
   const AgendamentoItem = ({ item }) => {
-    const data = new Date(item.data_agendamento);
-    const dataFormatada = data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const horaFormatada = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
-    const nomeBarbeiro = item.barbeiro?.nome_completo || 'Barbeiro';
+    const dataAgendamento = new Date(item.data_agendamento);
+    const agora = new Date();
+    const diffMs = dataAgendamento.getTime() - agora.getTime();
+    const diffHoras = diffMs / (1000 * 60 * 60);
+    const podeCancelar = diffHoras > 2;
 
-    // Define o estilo e o texto do status baseado no valor
-    const statusInfo = {
-      pendente: { texto: 'Pendente', cor: '#f59e0b' }, // Laranja
-      confirmado: { texto: 'Confirmado', cor: '#34D399' }, // Verde
+    const dataFormatada = dataAgendamento.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const horaFormatada = dataAgendamento.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+    const nomeBarbeiro = item.perfis?.nome_completo || 'Barbeiro';
+
+    const getStatusStyle = () => {
+      if (item.status === 'confirmado') {
+        return { text: 'Confirmado', style: styles.statusConfirmado };
+      }
+      if (item.status === 'pendente') {
+        return { text: 'Pendente', style: styles.statusPendente };
+      }
+      return { text: '', style: {} };
     };
-    const statusAtual = statusInfo[item.status] || { texto: item.status, cor: 'gray' };
+
+    const statusInfo = getStatusStyle();
 
     return (
-      // O container agora tem um estilo de 'overflow: hidden' vindo do StyleSheet
       <View style={styles.itemContainer}>
-        {/* Selo de Status */}
-        <View style={[styles.statusBadge, { backgroundColor: statusAtual.cor }]}>
-          <Text style={styles.statusBadgeText}>{statusAtual.texto}</Text>
-        </View>
-
         <View style={styles.itemDetails}>
-          <Text style={styles.itemServico}>{item.servicos.nome}</Text>
+          <View style={styles.headerRow}>
+            <Text style={styles.itemServico}>{item.servicos.nome}</Text>
+            <View style={[styles.statusBadge, statusInfo.style]}>
+              <Text style={styles.statusText}>{statusInfo.text}</Text>
+            </View>
+          </View>
           <Text style={styles.itemBarbeiro}>com {nomeBarbeiro}</Text>
           <Text style={styles.itemData}>{dataFormatada} às {horaFormatada}</Text>
         </View>
-        <TouchableOpacity style={styles.cancelButton} onPress={() => handleCancel(item.id)}>
-          <Ionicons name="trash-outline" size={24} color="#E50914" />
+        
+        <TouchableOpacity 
+          style={[styles.cancelButton, !podeCancelar && styles.cancelButtonDisabled]} 
+          onPress={() => handleCancel(item.id, podeCancelar)}
+        >
+          <Ionicons 
+            name="trash-outline" 
+            size={24} 
+            color={podeCancelar ? "#E50914" : "#555"} 
+          />
         </TouchableOpacity>
       </View>
     );
@@ -117,9 +134,9 @@ export default function MeusAgendamentosScreen() {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={() => router.push('/(tabs)/perfil')} style={styles.backButton}>
+      <TouchableOpacity onPress={() => router.replace('/(tabs)/perfil')} style={styles.backButton}>
         <Ionicons name="arrow-back" size={24} color="white" />
-        <Text style={styles.backButtonText}>Voltar</Text>
+        <Text style={styles.backButtonText}>Voltar ao Perfil</Text>
       </TouchableOpacity>
       <Text style={styles.title}>Meus Próximos Agendamentos</Text>
       <FlatList
@@ -133,44 +150,46 @@ export default function MeusAgendamentosScreen() {
   );
 }
 
-// =================================================================
-// <<< MUDANÇA 3: Adicionar os novos estilos para o selo de status >>>
-// =================================================================
 const styles = StyleSheet.create({
-    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
-    container: { flex: 1, backgroundColor: '#121212', paddingTop: 40 },
-    title: { fontSize: 24, fontWeight: 'bold', color: 'white', textAlign: 'center', marginVertical: 20, position: 'absolute', top: 40, width: '100%' },
-    itemContainer: { 
-      backgroundColor: '#1E1E1E', 
-      padding: 20, 
-      marginVertical: 8, 
-      borderRadius: 10, 
-      flexDirection: 'row', 
-      alignItems: 'center', 
-      justifyContent: 'space-between',
-      overflow: 'hidden', // Adicionado para o badge não vazar do card
-    },
-    itemDetails: { flex: 1 },
-    itemServico: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-    itemBarbeiro: { color: '#34D399', fontSize: 14, fontStyle: 'italic', marginVertical: 4 },
-    itemData: { color: 'gray', fontSize: 14, marginTop: 5 },
-    cancelButton: { padding: 10 },
-    placeholderText: { color: 'gray', textAlign: 'center', marginTop: 50, fontSize: 16 },
-    backButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 10, position: 'absolute', top: 40, left: 0, zIndex: 1 },
-    backButtonText: { color: 'white', fontSize: 16, marginLeft: 10 },
-    // Novos estilos para o selo de status
-    statusBadge: {
-      position: 'absolute',
-      top: 0, // Alterado para 0 para alinhar com o topo
-      right: 0, // Alterado para 0 para alinhar com a direita
-      paddingHorizontal: 12,
-      paddingVertical: 4,
-      borderBottomLeftRadius: 10,
-      borderTopRightRadius: 10, // Corrigido para alinhar com o canto do card
-    },
-    statusBadgeText: {
-      color: 'white',
-      fontWeight: 'bold',
-      fontSize: 12,
-    },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: '#121212', paddingTop: 40 },
+  title: { fontSize: 24, fontWeight: 'bold', color: 'white', textAlign: 'center', marginVertical: 20, position: 'absolute', top: 40, width: '100%' },
+  itemContainer: { backgroundColor: '#1E1E1E', padding: 20, marginVertical: 8, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  itemDetails: { flex: 1, marginRight: 10 },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  itemServico: { color: 'white', fontSize: 18, fontWeight: 'bold' },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  statusConfirmado: {
+    backgroundColor: 'rgba(52, 211, 153, 0.2)',
+    borderColor: '#34D399',
+    borderWidth: 1,
+  },
+  statusPendente: {
+    backgroundColor: 'rgba(251, 146, 60, 0.2)',
+    borderColor: '#FBBF24',
+    borderWidth: 1,
+  },
+  statusText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  itemBarbeiro: { color: '#A0A0A0', fontSize: 14, fontStyle: 'italic', marginVertical: 2 },
+  itemData: { color: 'gray', fontSize: 14, marginTop: 5 },
+  cancelButton: { padding: 10 },
+  cancelButtonDisabled: {
+    opacity: 0.5,
+  },
+  placeholderText: { color: 'gray', textAlign: 'center', marginTop: 50, fontSize: 16 },
+  backButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 10, position: 'absolute', top: 40, left: 0, zIndex: 1 },
+  backButtonText: { color: 'white', fontSize: 16, marginLeft: 10 },
 });
