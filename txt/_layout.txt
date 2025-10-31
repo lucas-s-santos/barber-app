@@ -1,0 +1,66 @@
+// Arquivo: app/(tabs)/_layout.tsx (COM TODAS AS TELAS EXTRAS ESCONDIDAS)
+
+import { Ionicons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
+import React from 'react';
+
+export default function TabsLayout() {
+  // Opções de estilo para as abas
+  const screenOptions = {
+    headerShown: false,
+    tabBarStyle: { 
+      backgroundColor: '#1E1E1E', 
+      borderTopColor: '#333',
+      height: 60,
+      paddingBottom: 5,
+    },
+    tabBarActiveTintColor: '#E50914',
+    tabBarInactiveTintColor: 'gray',
+  };
+
+  // Layout único para todos os usuários (clientes)
+  return (
+    <Tabs screenOptions={screenOptions}>
+      <Tabs.Screen 
+        name="agenda" 
+        options={{ 
+          title: 'Agenda',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="calendar-outline" color={color} size={size} />
+          ),
+        }} 
+      />
+      <Tabs.Screen 
+        name="servicos" 
+        options={{ 
+          title: 'Serviços',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="cut-outline" color={color} size={size} />
+          ),
+        }} 
+      />
+      <Tabs.Screen 
+        name="perfil" 
+        options={{ 
+          title: 'Perfil',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" color={color} size={size} />
+          ),
+        }} 
+      />
+      
+      {/* Esconde a aba de painel para que não apareça para ninguém */}
+      <Tabs.Screen name="painel" options={{ href: null }} />
+
+      {/* Esconde a tela de agendamentos futuros da barra de abas */}
+      <Tabs.Screen name="meus-agendamentos" options={{ href: null }} />
+
+      {/* ... outras telas escondidas ... */}
+      <Tabs.Screen name="historico-agendamentos" options={{ href: null }} />
+
+      {/* MUDANÇA AQUI: Esconde a tela de edição da barra de abas */}
+      <Tabs.Screen name="editar-perfil" options={{ href: null }} />
+
+    </Tabs>
+  );
+}

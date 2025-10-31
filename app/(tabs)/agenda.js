@@ -52,13 +52,18 @@ export default function AgendaScreen() {
     setLoadingHorarios(true);
     setHorariosDisponiveis([]);
 
+    // <<< A CORREÇÃO ESTÁ AQUI DENTRO >>>
+    // A chamada RPC agora envia um objeto com os parâmetros nomeados,
+    // exatamente como a função SQL espera.
     const { data, error } = await supabase.rpc('get_horarios_disponiveis', {
       p_barbeiro_id: barbeiroSelecionado.id,
       p_data: dataSelecionada,
       p_duracao_servico: servico.duracao,
     });
+    // ------------------------------------
     
     if (error) {
+      console.error("Erro na chamada RPC:", error); // Adicionado para depuração
       Alert.alert("Erro", `Não foi possível buscar os horários: ${error.message}`);
     } else {
       setHorariosDisponiveis(data || []);
@@ -165,12 +170,10 @@ export default function AgendaScreen() {
                 <Text style={styles.selectorButtonText}>{item.nome_completo}</Text>
               </TouchableOpacity>
               
-              {/* --- A CORREÇÃO ESTÁ AQUI DENTRO --- */}
               <TouchableOpacity
                 style={styles.detailsButton}
                 onPress={() => router.push({
                   pathname: '/(tabs)/detalhes-barbeiro',
-                  // Usamos o objeto 'servico' que já existe no estado do componente
                   params: { 
                     barbeiroId: item.id, 
                     servicoId: servico.id, 
@@ -181,7 +184,6 @@ export default function AgendaScreen() {
               >
                 <Text style={styles.detailsButtonText}>Ver Detalhes</Text>
               </TouchableOpacity>
-              {/* ---------------------------------- */}
             </View>
           )}
           ListEmptyComponent={<Text style={styles.placeholderText}>Nenhum barbeiro encontrado.</Text>}
@@ -199,11 +201,17 @@ export default function AgendaScreen() {
         <View style={styles.horariosContainer}>
           <Text style={styles.horariosTitle}>3. Escolha o Horário</Text>
           {loadingHorarios ? <ActivityIndicator color="#FFF" /> : (
-            <FlatList data={horariosDisponiveis} keyExtractor={(item) => item} numColumns={4} renderItem={({ item }) => (
-              <TouchableOpacity style={styles.horarioButton} onPress={() => abrirModalConfirmacao(item)}>
-                <Text style={styles.horarioText}>{item}</Text>
-              </TouchableOpacity>
-            )} ListEmptyComponent={<Text style={styles.placeholderText}>Nenhum horário disponível para este dia.</Text>} />
+            <FlatList 
+              data={horariosDisponiveis} 
+              keyExtractor={(item, index) => `${item.horario_disponivel}-${index}`} 
+              numColumns={4} 
+              renderItem={({ item }) => (
+                <TouchableOpacity style={styles.horarioButton} onPress={() => abrirModalConfirmacao(item.horario_disponivel)}>
+                  <Text style={styles.horarioText}>{item.horario_disponivel}</Text>
+                </TouchableOpacity>
+              )} 
+              ListEmptyComponent={<Text style={styles.placeholderText}>Nenhum horário disponível para este dia.</Text>} 
+            />
           )}
         </View>
       )}

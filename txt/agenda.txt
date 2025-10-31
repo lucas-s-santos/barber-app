@@ -10,6 +10,7 @@ export default function AgendaScreen() {
   const hoje = new Date().toISOString().split('T')[0];
 
   const [servico, setServico] = useState(null);
+  // <<< MUDANÇA: Adicionados estados para gerenciar barbeiros
   const [barbeiros, setBarbeiros] = useState([]);
   const [barbeiroSelecionado, setBarbeiroSelecionado] = useState(null);
   const [selectedDate, setSelectedDate] = useState('');
@@ -22,6 +23,7 @@ export default function AgendaScreen() {
     LocaleConfig.locales['pt-br'] = { monthNames: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'], monthNamesShort: ['Jan.', 'Fev.', 'Mar.', 'Abr.', 'Mai.', 'Jun.', 'Jul.', 'Ago.', 'Set.', 'Out.', 'Nov.', 'Dez.'], dayNames: ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'], dayNamesShort: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'], today: 'Hoje' };
     LocaleConfig.defaultLocale = 'pt-br';
 
+    // <<< MUDANÇA: Função para buscar os barbeiros da tabela 'perfis'
     const fetchBarbeiros = async () => {
       const { data, error } = await supabase
         .from('perfis')
@@ -44,22 +46,24 @@ export default function AgendaScreen() {
     }
   }, [params]));
 
+  // <<< MUDANÇA: A função agora depende do barbeiro selecionado
   const gerarHorarios = useCallback(async (dataSelecionada) => {
     if (!dataSelecionada || !servico || !barbeiroSelecionado) return;
     setLoadingHorarios(true);
     setHorariosDisponiveis([]);
 
+    // <<< MUDANÇA: Chamada RPC atualizada para a nova função
     const { data, error } = await supabase.rpc('get_horarios_disponiveis', {
       p_barbeiro_id: barbeiroSelecionado.id,
       p_data: dataSelecionada,
       p_duracao_servico: servico.duracao,
     });
-    
+
     if (error) {
       Alert.alert("Erro", `Não foi possível buscar os horários: ${error.message}`);
     } else {
-      // A resposta da função é um array de strings
-      const horarios = data.map(item => item.substring(0, 5));
+      // <<< MUDANÇA: O nome da coluna retornada é 'horario'
+      const horarios = data.map(item => item.horario.substring(0, 5));
       setHorariosDisponiveis(horarios);
     }
     setLoadingHorarios(false);
@@ -76,6 +80,7 @@ export default function AgendaScreen() {
   }, [selectedDate, gerarHorarios]);
 
   const handleAgendar = async () => {
+    // <<< MUDANÇA: Validação para garantir que todos os dados necessários existem
     if (!horarioParaConfirmar || !servico || !barbeiroSelecionado) return;
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -86,12 +91,12 @@ export default function AgendaScreen() {
 
     const dataHoraAgendamento = `${selectedDate}T${horarioParaConfirmar}:00`;
     
+    // <<< MUDANÇA: A inserção agora usa o ID do barbeiro selecionado
     const { error } = await supabase.from('agendamentos').insert({
       cliente_id: user.id,
       barbeiro_id: barbeiroSelecionado.id,
       servico_id: servico.id,
       data_agendamento: dataHoraAgendamento,
-      status: 'pendente' // Adicionando o status padrão
     });
 
     setModalVisible(false);
@@ -99,7 +104,7 @@ export default function AgendaScreen() {
       Alert.alert("Erro ao Agendar", error.message);
     } else {
       Alert.alert("Agendamento Confirmado!", `Seu horário para ${servico.nome} com ${barbeiroSelecionado.nome_completo} foi marcado com sucesso.`);
-      gerarHorarios(selectedDate);
+      gerarHorarios(selectedDate); // Atualiza a lista de horários
     }
   };
 
@@ -121,12 +126,14 @@ export default function AgendaScreen() {
 
   return (
     <View style={styles.container}>
+      {/* ... (código do Modal permanece o mesmo) ... */}
       <Modal animationType="fade" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalContainer}>
           <View style={styles.modalView}>
             <Text style={styles.modalTitle}>Confirmar Agendamento</Text>
             <Text style={styles.modalText}>
               Serviço: <Text style={{ fontWeight: 'bold' }}>{servico.nome}</Text>{'\n'}
+              {/* <<< MUDANÇA: Exibe o nome do barbeiro no modal */}
               Barbeiro: <Text style={{ fontWeight: 'bold' }}>{barbeiroSelecionado?.nome_completo}</Text>{'\n'}
               Data: <Text style={{ fontWeight: 'bold' }}>{selectedDate}</Text> às <Text style={{ fontWeight: 'bold' }}>{horarioParaConfirmar}</Text>
             </Text>
@@ -142,21 +149,14 @@ export default function AgendaScreen() {
         </View>
       </Modal>
 
-      {/* // <<< MUDANÇA: O container do serviço agora é uma View com flexDirection: 'row' */}
-      <View style={styles.servicoInfoContainer}>
-        <Text style={styles.servicoInfo}>Agendando: {servico.nome}</Text>
-        {/* // <<< MUDANÇA: Adicionado o botão "Trocar" */}
-        <TouchableOpacity onPress={() => router.push('/(tabs)/servicos')}>
-          <Text style={styles.trocarButtonText}>(Trocar)</Text>
-        </TouchableOpacity>
-      </View>
+      <Text style={styles.servicoInfo}>Agendando: {servico.nome}</Text>
 
+      {/* <<< MUDANÇA: Adicionada a lista de seleção de barbeiros */}
       <View style={styles.selectorContainer}>
         <Text style={styles.selectorTitle}>1. Escolha o Barbeiro</Text>
         <FlatList
           data={barbeiros}
           horizontal
-          showsHorizontalScrollIndicator={false}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <TouchableOpacity
@@ -173,6 +173,7 @@ export default function AgendaScreen() {
         />
       </View>
 
+      {/* <<< MUDANÇA: O calendário só aparece após selecionar um barbeiro */}
       {barbeiroSelecionado && (
         <>
           <Text style={styles.selectorTitle}>2. Escolha a Data</Text>
@@ -196,6 +197,7 @@ export default function AgendaScreen() {
   );
 }
 
+// <<< MUDANÇA: Adicionados novos estilos para o seletor de barbeiros
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212' },
   containerCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212', padding: 20 },
@@ -221,23 +223,5 @@ const styles = StyleSheet.create({
   confirmButtonText: { color: 'white', fontWeight: 'bold', textAlign: 'center' },
   button: { backgroundColor: '#E50914', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 20, width: '80%' },
   buttonText: { color: 'white', fontWeight: '700', fontSize: 16 },
-  // <<< MUDANÇA: Novos estilos para o container do serviço e o botão "Trocar"
-  servicoInfoContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 15,
-    backgroundColor: '#1E1E1E',
-  },
-  servicoInfo: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  trocarButtonText: {
-    color: '#E50914', // Cor de destaque
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 10,
-  },
+  servicoInfo: { color: 'white', fontSize: 18, fontWeight: 'bold', textAlign: 'center', padding: 15, backgroundColor: '#1E1E1E' },
 });

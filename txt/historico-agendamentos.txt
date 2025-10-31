@@ -1,72 +1,64 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useAlert } from '../../contexts/AlertContext'; // <<< MELHORIA: Usando o sistema de alerta
+import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../supabaseClient';
 
 export default function HistoricoAgendamentosScreen() {
   const [agendamentos, setAgendamentos] = useState([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const showAlert = useAlert(); // <<< MELHORIA: Inicializando o hook
 
   const fetchHistorico = useCallback(async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
+      // Se não houver usuário, não faz nada e limpa a tela
       setLoading(false);
       return;
     }
 
-    // <<< MUDANÇA: A lógica foi alterada para buscar por status em vez de data.
-    // Isso é mais robusto e garante que agendamentos cancelados no futuro apareçam aqui.
-    // Também simplificamos a consulta do nome do barbeiro.
+    const hoje = new Date().toISOString();
+
+    // A MUDANÇA PRINCIPAL ESTÁ AQUI:
+    // Usamos .lt() para pegar agendamentos com data MENOR QUE a data/hora atual
     const { data, error } = await supabase
       .from('agendamentos')
       .select(`
         id,
         data_agendamento,
-        status,
         servicos ( nome ),
-        perfis ( nome_completo )
+        barbeiros ( perfis ( nome_completo ) )
       `)
       .eq('cliente_id', user.id)
-      .in('status', ['concluido', 'cancelado']) // Busca agendamentos concluídos OU cancelados
+      .lt('data_agendamento', hoje) // .lt = less than (menor que)
       .order('data_agendamento', { ascending: false }); // Mostra os mais recentes primeiro
 
     if (error) {
-      showAlert("Erro ao buscar histórico", error.message, [{ text: 'OK' }]);
+      Alert.alert("Erro ao buscar histórico", error.message);
     } else {
       setAgendamentos(data);
     }
     setLoading(false);
-  }, [showAlert]);
+  }, []);
 
+  // useFocusEffect garante que a lista seja atualizada sempre que a tela for exibida
   useFocusEffect(fetchHistorico);
 
   const AgendamentoItem = ({ item }) => {
     const data = new Date(item.data_agendamento);
     const dataFormatada = data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const horaFormatada = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
-    // <<< MUDANÇA: Acessando o nome do barbeiro de forma mais direta.
-    const nomeBarbeiro = item.perfis?.nome_completo || 'Barbeiro';
-    const isCancelado = item.status === 'cancelado';
+    const nomeBarbeiro = item.barbeiros?.perfis?.nome_completo || 'Barbeiro';
 
     return (
-      // <<< MELHORIA: Adiciona um estilo visual para agendamentos cancelados
-      <View style={[styles.itemContainer, isCancelado && styles.itemCancelado]}>
+      <View style={styles.itemContainer}>
         <View style={styles.itemDetails}>
           <Text style={styles.itemServico}>{item.servicos.nome}</Text>
           <Text style={styles.itemBarbeiro}>com {nomeBarbeiro}</Text>
-          <Text style={styles.itemData}>
-            {isCancelado ? 'Cancelado em: ' : 'Realizado em: '}
-            {dataFormatada} às {horaFormatada}
-          </Text>
+          <Text style={styles.itemData}>Realizado em: {dataFormatada} às {horaFormatada}</Text>
         </View>
-        {isCancelado && (
-          <Ionicons name="close-circle" size={24} color="#E50914" />
-        )}
+        {/* Futuramente, podemos adicionar um botão para "Agendar Novamente" ou "Avaliar" aqui */}
       </View>
     );
   };
@@ -93,17 +85,12 @@ export default function HistoricoAgendamentosScreen() {
   );
 }
 
+// Os estilos são praticamente os mesmos da tela de "Meus Próximos Agendamentos"
 const styles = StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
   container: { flex: 1, backgroundColor: '#121212' },
   title: { fontSize: 24, fontWeight: 'bold', color: 'white', textAlign: 'center', marginVertical: 20, position: 'absolute', top: 40, width: '100%' },
-  itemContainer: { backgroundColor: '#1E1E1E', padding: 20, marginVertical: 8, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  // <<< MELHORIA: Estilo para itens cancelados
-  itemCancelado: {
-    borderColor: '#555',
-    borderWidth: 1,
-    opacity: 0.7
-  },
+  itemContainer: { backgroundColor: '#1E1E1E', padding: 20, marginVertical: 8, borderRadius: 10 },
   itemDetails: { flex: 1 },
   itemServico: { color: 'white', fontSize: 18, fontWeight: 'bold' },
   itemBarbeiro: { color: '#34D399', fontSize: 14, fontStyle: 'italic', marginVertical: 4 },
