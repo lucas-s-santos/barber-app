@@ -1,21 +1,26 @@
+// Arquivo: app/(auth)/login.js (Com o novo design "Neon Blade" / "Cyber Sky")
+
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-// 1. Importar o hook useAlert
+import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+
 import { useAlert } from '../../contexts/AlertContext';
+import { useAppTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../supabaseClient';
 
 export default function LoginScreen() {
   const router = useRouter();
-  // 2. Inicializar o hook
   const showAlert = useAlert();
+  const { theme } = useAppTheme(); // <<< 1. Pegamos as cores do tema ativo
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function signInWithEmail() {
     if (!email || !password) {
-      showAlert("Atenção", "Por favor, preencha seu email e senha.", [{ text: 'OK' }]);
+      showAlert("Atenção", "Por favor, preencha seu email e senha.");
       return;
     }
     setLoading(true);
@@ -24,33 +29,110 @@ export default function LoginScreen() {
       password: password,
     });
     if (error) {
-      // 3. Substituir o Alert.alert nativo pelo nosso
-      showAlert("Erro no Login", "Email ou senha inválidos. Por favor, tente novamente.", [{ text: 'OK' }]);
+      showAlert("Erro no Login", "Email ou senha inválidos. Por favor, tente novamente.");
     }
+    // Se o login for bem-sucedido, o onAuthStateChange no _layout.js cuidará do redirecionamento.
     setLoading(false);
   }
 
   return (
-    <View style={styles.container}>
-      <Image source={require('../../assets/images/logo.jpg')} style={styles.logo} />
-      <TextInput style={styles.input} placeholder="Email" placeholderTextColor="#888" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-      <TextInput style={styles.input} placeholder="Senha" placeholderTextColor="#888" value={password} onChangeText={setPassword} secureTextEntry />
-      <TouchableOpacity style={styles.button} onPress={signInWithEmail} disabled={loading}>
-        {loading ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Entrar</Text>}
-      </TouchableOpacity>
+    // KeyboardAvoidingView ajuda a tela a não ser coberta pelo teclado
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={[styles.container, { backgroundColor: theme.background }]} // <<< 2. Aplicamos a cor de fundo do tema
+    >
+      <View style={styles.header}>
+        <Ionicons name="cut-outline" size={60} color={theme.primary} />
+        <Text style={[styles.title, { color: theme.text }]}>BarberApp</Text>
+        <Text style={[styles.subtitle, { color: theme.subtext }]}>Bem-vindo de volta!</Text>
+      </View>
+
+      <View style={styles.form}>
+        <TextInput 
+          style={[styles.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]} 
+          placeholder="Email" 
+          placeholderTextColor={theme.subtext} 
+          value={email} 
+          onChangeText={setEmail} 
+          autoCapitalize="none" 
+          keyboardType="email-address" 
+        />
+        <TextInput 
+          style={[styles.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]} 
+          placeholder="Senha" 
+          placeholderTextColor={theme.subtext} 
+          value={password} 
+          onChangeText={setPassword} 
+          secureTextEntry 
+        />
+        
+        {/* Botão Principal com o novo estilo */}
+        <TouchableOpacity 
+          style={[styles.button, { backgroundColor: theme.primary }]} 
+          onPress={signInWithEmail} 
+          disabled={loading}
+        >
+          {loading 
+            ? <ActivityIndicator color={theme.background} /> 
+            : <Text style={[styles.buttonText, { color: theme.background }]}>Entrar</Text>
+          }
+        </TouchableOpacity>
+      </View>
+
       <TouchableOpacity style={styles.linkButton} onPress={() => router.push('/(auth)/cadastro')}>
-        <Text style={styles.linkText}>Não tem uma conta? <Text style={{ fontWeight: 'bold' }}>Cadastre-se</Text></Text>
+        <Text style={[styles.linkText, { color: theme.subtext }]}>
+          Não tem uma conta? <Text style={{ fontWeight: 'bold', color: theme.primary }}>Cadastre-se</Text>
+        </Text>
       </TouchableOpacity>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
+// Estilos completamente refeitos para o novo design
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 20, justifyContent: 'center' },
-  logo: { width: 150, height: 150, resizeMode: 'contain', marginBottom: 20, alignSelf: 'center' },
-  input: { backgroundColor: '#1E1E1E', color: 'white', padding: 15, borderRadius: 10, marginBottom: 15, fontSize: 16 },
-  button: { backgroundColor: '#E50914', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 10 },
-  buttonText: { color: 'white', fontWeight: '700', fontSize: 16 },
-  linkButton: { marginTop: 25, alignItems: 'center' },
-  linkText: { color: 'gray', fontSize: 16 },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 20,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  title: {
+    fontSize: 40,
+    fontWeight: 'bold',
+    marginTop: 10,
+  },
+  subtitle: {
+    fontSize: 18,
+    marginTop: 5,
+  },
+  form: {
+    width: '100%',
+  },
+  input: {
+    padding: 18,
+    borderRadius: 12,
+    marginBottom: 15,
+    fontSize: 16,
+    borderWidth: 1,
+  },
+  button: {
+    padding: 18,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  buttonText: {
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  linkButton: {
+    marginTop: 30,
+    alignItems: 'center',
+  },
+  linkText: {
+    fontSize: 16,
+  },
 });

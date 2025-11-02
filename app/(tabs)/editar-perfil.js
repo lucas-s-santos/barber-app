@@ -1,16 +1,23 @@
-// Arquivo: app/(tabs)/editar-perfil.js (SEM NENHUMA IMAGEM PLACEHOLDER)
+// Arquivo: app/(tabs)/editar-perfil.js (COM MÁSCARA DE DATA)
 
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { supabase } from '../../supabaseClient';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { MaskedTextInput } from "react-native-mask-text"; // <<< 1. Importa a biblioteca de máscara
 
-// <<< REMOVIDO QUALQUER IMPORT DE IMAGEM DAQUI >>>
+// Hooks personalizados
+import { useAlert } from '../../contexts/AlertContext';
+import { useAppTheme } from '../../contexts/ThemeContext';
+import { supabase } from '../../supabaseClient';
 
 export default function EditarPerfilScreen() {
   const router = useRouter();
+  const showAlert = useAlert();
+  const { theme } = useAppTheme();
+
+  // --- Estados do formulário ---
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [nomeCompleto, setNomeCompleto] = useState('');
@@ -19,15 +26,19 @@ export default function EditarPerfilScreen() {
   const [portfolio, setPortfolio] = useState([]);
   const [userRole, setUserRole] = useState(null);
 
+  // <<< 2. Novo estado para a data de nascimento >>>
+  const [dataNascimento, setDataNascimento] = useState('');
+
   const getProfile = useCallback(async () => {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Nenhum usuário logado.');
 
+      // <<< 3. Busca a data_nascimento junto com os outros dados >>>
       const { data, error, status } = await supabase
         .from('perfis')
-        .select(`nome_completo, telefone, foto_base64, papel`)
+        .select(`nome_completo, telefone, foto_base64, papel, data_nascimento`)
         .eq('id', user.id)
         .single();
 
@@ -38,6 +49,13 @@ export default function EditarPerfilScreen() {
         setTelefone(data.telefone);
         setAvatarUrl(data.foto_base64);
         setUserRole(data.papel);
+
+        // <<< 4. Formata a data do Supabase (YYYY-MM-DD) para o nosso formato (DD/MM/YYYY) >>>
+        if (data.data_nascimento) {
+          const [ano, mes, dia] = data.data_nascimento.split('-');
+          setDataNascimento(`${dia}/${mes}/${ano}`);
+        }
+        // ---------------------------------------------------------------------------------
 
         if (data.papel === 'barbeiro') {
           const { data: portfolioData, error: portfolioError } = await supabase
@@ -50,32 +68,52 @@ export default function EditarPerfilScreen() {
         }
       }
     } catch (error) {
-      Alert.alert('Erro ao buscar perfil', error.message);
+      showAlert('Erro ao buscar perfil', error.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showAlert]);
 
   useEffect(() => {
     getProfile();
   }, [getProfile]);
 
-  // ... (O resto das funções continua igual)
   async function updateProfile() {
     try {
       setSaving(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Nenhum usuário logado.');
-      const updates = { id: user.id, nome_completo: nomeCompleto, telefone, foto_base64: avatarUrl, updated_at: new Date() };
+
+      // <<< 5. Converte a data de volta para o formato do Supabase antes de salvar >>>
+      const partesData = dataNascimento.split('/');
+      if (partesData.length !== 3 || partesData[2].length !== 4) {
+        showAlert("Data Inválida", "Por favor, insira uma data de nascimento válida no formato DD/MM/YYYY.");
+        setSaving(false);
+        return;
+      }
+      const dataFormatadaParaSupabase = `${partesData[2]}-${partesData[1]}-${partesData[0]}`;
+      // ---------------------------------------------------------------------------------
+
+      const updates = {
+        id: user.id,
+        nome_completo: nomeCompleto,
+        telefone,
+        foto_base64: avatarUrl,
+        data_nascimento: dataFormatadaParaSupabase, // Adiciona a data ao objeto de atualização
+        updated_at: new Date(),
+      };
+
       const { error } = await supabase.from('perfis').upsert(updates);
       if (error) throw error;
-      Alert.alert('Sucesso', 'Perfil atualizado!');
+      showAlert('Sucesso', 'Perfil atualizado!');
     } catch (error) {
-      Alert.alert('Erro ao atualizar perfil', error.message);
+      showAlert('Erro ao atualizar perfil', error.message);
     } finally {
       setSaving(false);
     }
   }
+
+  // Funções de imagem (pickImage, uploadPortfolioPhoto, deletePortfolioPhoto) permanecem as mesmas
   async function pickImage(isAvatar) {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.5, base64: true });
     if (!result.canceled) {
@@ -91,24 +129,24 @@ export default function EditarPerfilScreen() {
       const { data, error } = await supabase.from('portfolio_barbeiro').insert({ barbeiro_id: user.id, foto_base64: base64 }).select();
       if (error) throw error;
       setPortfolio(prev => [...prev, ...data]);
-      Alert.alert('Sucesso', 'Foto adicionada ao portfólio!');
+      showAlert('Sucesso', 'Foto adicionada ao portfólio!');
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível adicionar a foto ao portfólio.');
+      showAlert('Erro', 'Não foi possível adicionar a foto ao portfólio.');
     } finally {
       setSaving(false);
     }
   }
   async function deletePortfolioPhoto(photoId) {
-    Alert.alert("Confirmar Exclusão", "Tem certeza que deseja remover esta foto do seu portfólio?",
+    showAlert("Confirmar Exclusão", "Tem certeza que deseja remover esta foto do seu portfólio?",
       [{ text: "Cancelar", style: "cancel" }, { text: "Excluir", style: "destructive", onPress: async () => {
         try {
           setSaving(true);
           const { error } = await supabase.from('portfolio_barbeiro').delete().eq('id', photoId);
           if (error) throw error;
           setPortfolio(prev => prev.filter(p => p.id !== photoId));
-          Alert.alert('Sucesso', 'Foto removida.');
+          showAlert('Sucesso', 'Foto removida.');
         } catch (error) {
-          Alert.alert('Erro', 'Não foi possível remover a foto.');
+          showAlert('Erro', 'Não foi possível remover a foto.');
         } finally {
           setSaving(false);
         }
@@ -117,49 +155,63 @@ export default function EditarPerfilScreen() {
   }
 
   if (loading) {
-    return <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#E50914" /></View>;
+    return <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}><ActivityIndicator size="large" color={theme.primary} /></View>;
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-        <Ionicons name="arrow-back" size={24} color="white" />
-      </TouchableOpacity>
-      <Text style={styles.title}>Editar Perfil</Text>
+    <ScrollView style={[styles.container, { backgroundColor: theme.background }]} contentContainerStyle={styles.scrollContent}>
+      <View style={[styles.header, { backgroundColor: theme.background }]}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
+        </TouchableOpacity>
+        <Text style={[styles.title, { color: theme.text }]}>Editar Perfil</Text>
+      </View>
 
       <View style={styles.avatarContainer}>
-        {/* <<< A MUDANÇA FINAL: SÓ RENDERIZA A IMAGEM SE ELA EXISTIR >>> */}
-        {avatarUrl ? (
-          <Image
-            source={{ uri: `data:image/jpeg;base64,${avatarUrl}` }}
-            style={styles.avatar}
-          />
-        ) : (
-          // Se não houver avatar, mostra um círculo cinza
-          <View style={styles.avatar} />
-        )}
         <TouchableOpacity onPress={() => pickImage(true)}>
-          <Text style={styles.changeAvatarText}>Alterar Foto de Perfil</Text>
+          {avatarUrl ? (
+            <Image source={{ uri: `data:image/jpeg;base64,${avatarUrl}` }} style={[styles.avatar, { borderColor: theme.primary }]} />
+          ) : (
+            <View style={[styles.avatarPlaceholder, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Ionicons name="camera-outline" size={40} color={theme.subtext} />
+            </View>
+          )}
+          <Text style={[styles.changeAvatarText, { color: theme.primary }]}>Alterar Foto de Perfil</Text>
         </TouchableOpacity>
       </View>
 
-      {/* O resto do JSX continua igual */}
-      <Text style={styles.label}>Nome Completo</Text>
-      <TextInput style={styles.input} value={nomeCompleto} onChangeText={setNomeCompleto} placeholder="Seu nome completo" placeholderTextColor="#888" />
-      <Text style={styles.label}>Telefone</Text>
-      <TextInput style={styles.input} value={telefone} onChangeText={setTelefone} placeholder="Seu telefone" placeholderTextColor="#888" keyboardType="phone-pad" />
-      <TouchableOpacity style={styles.saveButton} onPress={updateProfile} disabled={saving}>
-        <Text style={styles.saveButtonText}>{saving ? 'Salvando...' : 'Salvar Alterações do Perfil'}</Text>
+      <View style={styles.form}>
+        <Text style={[styles.label, { color: theme.subtext }]}>Nome Completo</Text>
+        <MaskedTextInput style={[styles.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]} value={nomeCompleto} onChangeText={setNomeCompleto} />
+        
+        {/* <<< 6. Campo de Data de Nascimento com Máscara >>> */}
+        <Text style={[styles.label, { color: theme.subtext }]}>Data de Nascimento</Text>
+        <MaskedTextInput
+          mask="99/99/9999"
+          onChangeText={(text) => setDataNascimento(text)}
+          value={dataNascimento}
+          style={[styles.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
+          keyboardType="numeric"
+        />
+        {/* ------------------------------------------------- */}
+
+        <Text style={[styles.label, { color: theme.subtext }]}>Telefone</Text>
+        <MaskedTextInput style={[styles.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]} value={telefone} onChangeText={setTelefone} keyboardType="phone-pad" />
+      </View>
+
+      <TouchableOpacity style={[styles.saveButton, { backgroundColor: theme.primary }]} onPress={updateProfile} disabled={saving}>
+        {saving ? <ActivityIndicator color={theme.background} /> : <Text style={[styles.saveButtonText, { color: theme.background }]}>Salvar Alterações</Text>}
       </TouchableOpacity>
+
       {userRole === 'barbeiro' && (
         <View style={styles.portfolioSection}>
-          <Text style={styles.sectionTitle}>Meu Portfólio</Text>
-          <TouchableOpacity style={styles.addButton} onPress={() => pickImage(false)}>
-            <Ionicons name="add-circle-outline" size={24} color="#333" />
-            <Text style={styles.addButtonText}>Adicionar Foto</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Meu Portfólio</Text>
+          <TouchableOpacity style={[styles.addButton, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={() => pickImage(false)}>
+            <Ionicons name="add-circle-outline" size={24} color={theme.primary} />
+            <Text style={[styles.addButtonText, { color: theme.primary }]}>Adicionar Foto</Text>
           </TouchableOpacity>
           {portfolio.length === 0 ? (
-            <Text style={styles.emptyPortfolioText}>Seu portfólio está vazio. Adicione fotos dos seus melhores cortes!</Text>
+            <Text style={[styles.emptyPortfolioText, { color: theme.subtext }]}>Seu portfólio está vazio.</Text>
           ) : (
             <View style={styles.portfolioGrid}>
               {portfolio.map(photo => (
@@ -179,24 +231,28 @@ export default function EditarPerfilScreen() {
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
-  container: { flex: 1, backgroundColor: '#121212', padding: 20 },
-  backButton: { position: 'absolute', top: 40, left: 20, zIndex: 1 },
-  title: { fontSize: 28, fontWeight: 'bold', color: 'white', textAlign: 'center', marginTop: 80, marginBottom: 30 },
-  avatarContainer: { alignItems: 'center', marginBottom: 30 },
-  avatar: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#333' },
-  changeAvatarText: { color: '#E50914', marginTop: 10, fontWeight: 'bold' },
-  label: { color: 'white', fontSize: 16, marginBottom: 5, marginLeft: 5 },
-  input: { backgroundColor: '#333', color: 'white', padding: 15, borderRadius: 5, marginBottom: 20, fontSize: 16 },
-  saveButton: { backgroundColor: '#E50914', padding: 15, borderRadius: 5, alignItems: 'center' },
-  saveButtonText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-  portfolioSection: { marginTop: 40, borderTopWidth: 1, borderTopColor: '#333', paddingTop: 20 },
-  sectionTitle: { fontSize: 22, fontWeight: 'bold', color: 'white', marginBottom: 20 },
-  addButton: { flexDirection: 'row', backgroundColor: '#f0c14b', padding: 15, borderRadius: 5, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
-  addButtonText: { color: '#333', fontSize: 16, fontWeight: 'bold', marginLeft: 10 },
-  emptyPortfolioText: { color: 'gray', textAlign: 'center', fontStyle: 'italic' },
-  portfolioGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  portfolioImageContainer: { width: '48%', marginBottom: 10, position: 'relative' },
-  portfolioImage: { width: '100%', height: 150, borderRadius: 10, backgroundColor: '#333' },
-  deleteButton: { position: 'absolute', top: 5, right: 5, backgroundColor: 'rgba(0, 0, 0, 0.6)', borderRadius: 15, width: 30, height: 30, justifyContent: 'center', alignItems: 'center' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  container: { flex: 1 },
+  scrollContent: { paddingBottom: 50, paddingHorizontal: 20 },
+  header: { paddingTop: 60, paddingBottom: 10, alignItems: 'center' },
+  title: { fontSize: 22, fontWeight: 'bold' },
+  backButton: { position: 'absolute', left: 15, top: 58, padding: 5, zIndex: 1 },
+  avatarContainer: { alignItems: 'center', marginVertical: 20 },
+  avatar: { width: 120, height: 120, borderRadius: 60, borderWidth: 3 },
+  avatarPlaceholder: { width: 120, height: 120, borderRadius: 60, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
+  changeAvatarText: { marginTop: 10, fontWeight: 'bold', fontSize: 16 },
+  form: { marginBottom: 30 },
+  label: { fontSize: 14, marginBottom: 8, marginLeft: 5 },
+  input: { height: 58, paddingHorizontal: 18, borderRadius: 12, marginBottom: 20, fontSize: 16, borderWidth: 1 },
+  saveButton: { padding: 18, borderRadius: 12, alignItems: 'center' },
+  saveButtonText: { fontWeight: '700', fontSize: 16 },
+  portfolioSection: { marginTop: 40, borderTopWidth: 1, borderTopColor: '#30363D', paddingTop: 30 },
+  sectionTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 20 },
+  addButton: { flexDirection: 'row', borderWidth: 1, padding: 15, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  addButtonText: { fontSize: 16, fontWeight: 'bold', marginLeft: 10 },
+  emptyPortfolioText: { textAlign: 'center', fontStyle: 'italic' },
+  portfolioGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', gap: 10 },
+  portfolioImageContainer: { width: '31%', aspectRatio: 1, position: 'relative' },
+  portfolioImage: { width: '100%', height: '100%', borderRadius: 10 },
+  deleteButton: { position: 'absolute', top: 5, right: 5, backgroundColor: 'rgba(0, 0, 0, 0.7)', borderRadius: 15, width: 30, height: 30, justifyContent: 'center', alignItems: 'center' },
 });

@@ -1,8 +1,13 @@
+// Arquivo: app/(tabs)/meus-agendamentos.js (COM A CORREÇÃO DO ALERTA)
+
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+// Hooks personalizados
 import { useAlert } from '../../contexts/AlertContext';
+import { useAppTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../supabaseClient';
 
 export default function MeusAgendamentosScreen() {
@@ -10,6 +15,7 @@ export default function MeusAgendamentosScreen() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const showAlert = useAlert();
+  const { theme } = useAppTheme(); // Pega as cores do tema
 
   const fetchAgendamentos = useCallback(async () => {
     setLoading(true);
@@ -19,7 +25,6 @@ export default function MeusAgendamentosScreen() {
       return;
     }
     
-    // <<< MUDANÇA PRINCIPAL: A consulta agora usa a hora atual para buscar apenas o que é futuro >>>
     const { data, error } = await supabase
       .from('agendamentos')
       .select(`
@@ -30,9 +35,7 @@ export default function MeusAgendamentosScreen() {
         perfis:barbeiro_id ( nome_completo )
       `)
       .eq('cliente_id', user.id)
-      .in('status', ['confirmado', 'pendente']) // Busca agendamentos confirmados OU pendentes
-      // A condição chave: busca apenas agendamentos cuja data/hora seja maior ou igual a AGORA.
-      // Isso move automaticamente os agendamentos passados para fora desta lista.
+      .in('status', ['confirmado', 'pendente'])
       .gte('data_agendamento', new Date().toISOString()) 
       .order('data_agendamento', { ascending: true });
 
@@ -69,8 +72,11 @@ export default function MeusAgendamentosScreen() {
             if (error) {
               showAlert("Erro", `Não foi possível cancelar o agendamento: ${error.message}`, [{ text: 'OK' }]);
             } else {
+              // <<< A CORREÇÃO ESTÁ AQUI >>>
+              // Agora passamos o array com o botão "OK"
               showAlert("Sucesso!", "Seu agendamento foi cancelado.", [{ text: 'OK' }]);
-              fetchAgendamentos();
+              // ---------------------------------
+              fetchAgendamentos(); // Atualiza a lista após o sucesso
             }
           }
         }
@@ -91,37 +97,38 @@ export default function MeusAgendamentosScreen() {
 
     const getStatusStyle = () => {
       if (item.status === 'confirmado') {
-        return { text: 'Confirmado', style: styles.statusConfirmado };
+        return { text: 'Confirmado', badgeColor: 'rgba(52, 211, 153, 0.2)', textColor: '#34D399' };
       }
       if (item.status === 'pendente') {
-        return { text: 'Pendente', style: styles.statusPendente };
+        return { text: 'Pendente', badgeColor: 'rgba(251, 146, 60, 0.2)', textColor: '#FBBF24' };
       }
-      return { text: '', style: {} };
+      return { text: '', badgeColor: 'transparent', textColor: theme.subtext };
     };
 
     const statusInfo = getStatusStyle();
 
     return (
-      <View style={styles.itemContainer}>
+      <View style={[styles.itemContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
         <View style={styles.itemDetails}>
           <View style={styles.headerRow}>
-            <Text style={styles.itemServico}>{item.servicos.nome}</Text>
-            <View style={[styles.statusBadge, statusInfo.style]}>
-              <Text style={styles.statusText}>{statusInfo.text}</Text>
+            <Text style={[styles.itemServico, { color: theme.text }]}>{item.servicos.nome}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: statusInfo.badgeColor }]}>
+              <Text style={[styles.statusText, { color: statusInfo.textColor }]}>{statusInfo.text}</Text>
             </View>
           </View>
-          <Text style={styles.itemBarbeiro}>com {nomeBarbeiro}</Text>
-          <Text style={styles.itemData}>{dataFormatada} às {horaFormatada}</Text>
+          <Text style={[styles.itemBarbeiro, { color: theme.subtext }]}>com {nomeBarbeiro}</Text>
+          <Text style={[styles.itemData, { color: theme.subtext }]}>{dataFormatada} às {horaFormatada}</Text>
         </View>
         
         <TouchableOpacity 
-          style={[styles.cancelButton, !podeCancelar && styles.cancelButtonDisabled]} 
+          style={styles.cancelButton} 
           onPress={() => handleCancel(item.id, podeCancelar)}
+          disabled={!podeCancelar}
         >
           <Ionicons 
             name="trash-outline" 
             size={24} 
-            color={podeCancelar ? "#E50914" : "#555"} 
+            color={podeCancelar ? theme.secondary : theme.subtext} 
           />
         </TouchableOpacity>
       </View>
@@ -129,67 +136,57 @@ export default function MeusAgendamentosScreen() {
   };
 
   if (loading) {
-    return <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#E50914" /></View>;
+    return <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}><ActivityIndicator size="large" color={theme.primary} /></View>;
   }
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity onPress={() => router.replace('/(tabs)/perfil')} style={styles.backButton}>
-        <Ionicons name="arrow-back" size={24} color="white" />
-        <Text style={styles.backButtonText}>Voltar ao Perfil</Text>
-      </TouchableOpacity>
-      <Text style={styles.title}>Meus Próximos Agendamentos</Text>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.header, { backgroundColor: theme.background }]}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
+        </TouchableOpacity>
+        <Text style={[styles.title, { color: theme.text }]}>Meus Próximos Agendamentos</Text>
+      </View>
       <FlatList
         data={agendamentos}
         keyExtractor={(item) => item.id.toString()}
         renderItem={AgendamentoItem}
-        contentContainerStyle={{ paddingHorizontal: 10, paddingTop: 80 }}
-        ListEmptyComponent={<Text style={styles.placeholderText}>Você não tem agendamentos futuros.</Text>}
+        contentContainerStyle={{ paddingHorizontal: 15, paddingTop: 100, paddingBottom: 20 }}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Ionicons name="calendar-outline" size={60} color={theme.subtext} />
+            <Text style={[styles.placeholderText, { color: theme.subtext }]}>Você não tem agendamentos futuros.</Text>
+          </View>
+        }
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
-  container: { flex: 1, backgroundColor: '#121212', paddingTop: 40 },
-  title: { fontSize: 24, fontWeight: 'bold', color: 'white', textAlign: 'center', marginVertical: 20, position: 'absolute', top: 40, width: '100%' },
-  itemContainer: { backgroundColor: '#1E1E1E', padding: 20, marginVertical: 8, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  itemDetails: { flex: 1, marginRight: 10 },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  container: { flex: 1 },
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    paddingTop: 60,
+    paddingBottom: 10,
     alignItems: 'center',
-    marginBottom: 4,
   },
-  itemServico: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  statusConfirmado: {
-    backgroundColor: 'rgba(52, 211, 153, 0.2)',
-    borderColor: '#34D399',
-    borderWidth: 1,
-  },
-  statusPendente: {
-    backgroundColor: 'rgba(251, 146, 60, 0.2)',
-    borderColor: '#FBBF24',
-    borderWidth: 1,
-  },
-  statusText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  itemBarbeiro: { color: '#A0A0A0', fontSize: 14, fontStyle: 'italic', marginVertical: 2 },
-  itemData: { color: 'gray', fontSize: 14, marginTop: 5 },
+  title: { fontSize: 22, fontWeight: 'bold' },
+  backButton: { position: 'absolute', left: 15, top: 58, padding: 5 },
+  itemContainer: { padding: 20, marginVertical: 8, borderRadius: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1 },
+  itemDetails: { flex: 1, marginRight: 10 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  itemServico: { fontSize: 18, fontWeight: 'bold' },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  statusText: { fontSize: 12, fontWeight: 'bold' },
+  itemBarbeiro: { fontSize: 14, fontStyle: 'italic', marginVertical: 2 },
+  itemData: { fontSize: 14, marginTop: 5 },
   cancelButton: { padding: 10 },
-  cancelButtonDisabled: {
-    opacity: 0.5,
-  },
-  placeholderText: { color: 'gray', textAlign: 'center', marginTop: 50, fontSize: 16 },
-  backButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 10, position: 'absolute', top: 40, left: 0, zIndex: 1 },
-  backButtonText: { color: 'white', fontSize: 16, marginLeft: 10 },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 100 },
+  placeholderText: { marginTop: 20, fontSize: 16 },
 });
