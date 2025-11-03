@@ -6,6 +6,12 @@ import { supabase } from '../../supabaseClient';
 
 type UserRole = 'cliente' | 'barbeiro' | null;
 
+// Componente de ícone para simplificar
+const TabBarIcon = ({ name, color, size }: { name: React.ComponentProps<typeof Ionicons>['name']; color: string; size: number }) => {
+  return <Ionicons size={size} name={name} color={color} />;
+};
+
+
 export default function TabsLayout() {
   const [loading, setLoading] = useState<boolean>(true);
   const [userRole, setUserRole] = useState<UserRole>(null);
@@ -61,8 +67,6 @@ export default function TabsLayout() {
     );
   }
 
-  // <<< A LÓGICA CORRETA E ROBUSTA ESTÁ AQUI >>>
-  // Se não tem papel definido, não renderiza as Tabs para evitar erros
   if (!userRole) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', backgroundColor: '#121212' }}>
@@ -72,7 +76,6 @@ export default function TabsLayout() {
   }
 
   return (
-    // Define a rota inicial baseada no papel do usuário
     <Tabs 
       screenOptions={screenOptions}
       initialRouteName={userRole === 'barbeiro' ? 'painel' : 'servicos'}
@@ -83,7 +86,6 @@ export default function TabsLayout() {
         options={{ 
           title: 'Serviços', 
           tabBarIcon: ({ color, size }) => <Ionicons name="cut-outline" color={color} size={size} />,
-          // Esconde a aba se for barbeiro
           href: userRole === 'barbeiro' ? null : '/servicos'
         }} 
       />
@@ -94,10 +96,22 @@ export default function TabsLayout() {
         options={{ 
           title: 'Painel', 
           tabBarIcon: ({ color, size }) => <Ionicons name="grid-outline" color={color} size={size} />, 
-          // Esconde a aba se for cliente
           href: userRole === 'cliente' ? null : '/painel'
         }} 
       />
+
+      {/* ================================================================= */}
+      {/* <<< CÓDIGO ADICIONADO EXATAMENTE COMO VOCÊ PEDIU >>> */}
+      <Tabs.Screen
+        name="dashboard" // O nome do seu arquivo
+        options={{
+          title: 'Dashboard',
+          tabBarIcon: ({ color, size }) => <TabBarIcon name="stats-chart" color={color} size={size} />,
+          // Garante que a aba só apareça para o barbeiro
+          href: userRole === 'cliente' ? null : '/dashboard',
+        }}
+      />
+      {/* ================================================================= */}
 
       {/* --- ROTAS COMPARTILHADAS --- */}
       <Tabs.Screen 
@@ -105,7 +119,6 @@ export default function TabsLayout() {
         options={{ 
           title: 'Agendar', 
           tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" color={color} size={size} />,
-          // A tela de agenda é acessível por ambos, mas não é a principal de nenhum
           href: '/agenda'
         }} 
       />

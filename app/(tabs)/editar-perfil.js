@@ -1,11 +1,11 @@
-// Arquivo: app/(tabs)/editar-perfil.js (COM MÁSCARA DE DATA)
+// Arquivo: app/(tabs)/editar-perfil.js (COM A CORREÇÃO FINAL DO EMAIL)
 
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { MaskedTextInput } from "react-native-mask-text"; // <<< 1. Importa a biblioteca de máscara
+import { MaskedTextInput } from "react-native-mask-text";
 
 // Hooks personalizados
 import { useAlert } from '../../contexts/AlertContext';
@@ -25,8 +25,6 @@ export default function EditarPerfilScreen() {
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [portfolio, setPortfolio] = useState([]);
   const [userRole, setUserRole] = useState(null);
-
-  // <<< 2. Novo estado para a data de nascimento >>>
   const [dataNascimento, setDataNascimento] = useState('');
 
   const getProfile = useCallback(async () => {
@@ -35,7 +33,6 @@ export default function EditarPerfilScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Nenhum usuário logado.');
 
-      // <<< 3. Busca a data_nascimento junto com os outros dados >>>
       const { data, error, status } = await supabase
         .from('perfis')
         .select(`nome_completo, telefone, foto_base64, papel, data_nascimento`)
@@ -50,12 +47,10 @@ export default function EditarPerfilScreen() {
         setAvatarUrl(data.foto_base64);
         setUserRole(data.papel);
 
-        // <<< 4. Formata a data do Supabase (YYYY-MM-DD) para o nosso formato (DD/MM/YYYY) >>>
         if (data.data_nascimento) {
           const [ano, mes, dia] = data.data_nascimento.split('-');
           setDataNascimento(`${dia}/${mes}/${ano}`);
         }
-        // ---------------------------------------------------------------------------------
 
         if (data.papel === 'barbeiro') {
           const { data: portfolioData, error: portfolioError } = await supabase
@@ -84,28 +79,31 @@ export default function EditarPerfilScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Nenhum usuário logado.');
 
-      // <<< 5. Converte a data de volta para o formato do Supabase antes de salvar >>>
-      const partesData = dataNascimento.split('/');
-      if (partesData.length !== 3 || partesData[2].length !== 4) {
-        showAlert("Data Inválida", "Por favor, insira uma data de nascimento válida no formato DD/MM/YYYY.");
-        setSaving(false);
-        return;
+      // Valida e formata a data de nascimento
+      let dataFormatadaParaSupabase = null;
+      if (dataNascimento) {
+        const partesData = dataNascimento.split('/');
+        if (partesData.length !== 3 || partesData[2].length !== 4) {
+          showAlert("Data Inválida", "Por favor, insira uma data de nascimento válida no formato DD/MM/YYYY.");
+          setSaving(false);
+          return;
+        }
+        dataFormatadaParaSupabase = `${partesData[2]}-${partesData[1]}-${partesData[0]}`;
       }
-      const dataFormatadaParaSupabase = `${partesData[2]}-${partesData[1]}-${partesData[0]}`;
-      // ---------------------------------------------------------------------------------
 
+      // Objeto de atualização com o email incluído
       const updates = {
         id: user.id,
+        email: user.email, // <<< GARANTE QUE O EMAIL SEJA SEMPRE ENVIADO
         nome_completo: nomeCompleto,
         telefone,
         foto_base64: avatarUrl,
-        data_nascimento: dataFormatadaParaSupabase, // Adiciona a data ao objeto de atualização
-        updated_at: new Date(),
+        data_nascimento: dataFormatadaParaSupabase,
       };
 
       const { error } = await supabase.from('perfis').upsert(updates);
       if (error) throw error;
-      showAlert('Sucesso', 'Perfil atualizado!');
+      showAlert('Sucesso', 'Perfil atualizado!', [{ text: 'OK' }]);
     } catch (error) {
       showAlert('Erro ao atualizar perfil', error.message);
     } finally {
@@ -184,7 +182,6 @@ export default function EditarPerfilScreen() {
         <Text style={[styles.label, { color: theme.subtext }]}>Nome Completo</Text>
         <MaskedTextInput style={[styles.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]} value={nomeCompleto} onChangeText={setNomeCompleto} />
         
-        {/* <<< 6. Campo de Data de Nascimento com Máscara >>> */}
         <Text style={[styles.label, { color: theme.subtext }]}>Data de Nascimento</Text>
         <MaskedTextInput
           mask="99/99/9999"
@@ -193,7 +190,6 @@ export default function EditarPerfilScreen() {
           style={[styles.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
           keyboardType="numeric"
         />
-        {/* ------------------------------------------------- */}
 
         <Text style={[styles.label, { color: theme.subtext }]}>Telefone</Text>
         <MaskedTextInput style={[styles.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]} value={telefone} onChangeText={setTelefone} keyboardType="phone-pad" />
