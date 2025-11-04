@@ -28,9 +28,17 @@ export default function LoginScreen() {
       email: email,
       password: password,
     });
+   // ========================================================================
+// <<< A CORREÇÃO QUE VOCÊ PEDIU ESTÁ AQUI >>>
+// ========================================================================
     if (error) {
-      showAlert("Erro no Login", "Email ou senha inválidos. Por favor, tente novamente.");
+      showAlert(
+        'Erro no Login', // Título
+        'Email ou senha inválidos. Por favor, tente novamente.', // Mensagem
+        [{ text: 'OK' }] // Array de botões
+      );
     }
+
     // Se o login for bem-sucedido, o onAuthStateChange no _layout.js cuidará do redirecionamento.
     setLoading(false);
   }

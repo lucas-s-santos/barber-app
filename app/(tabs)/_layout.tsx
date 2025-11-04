@@ -1,3 +1,5 @@
+// Arquivo: app/(tabs)/_layout.js (VERSÃO CORRIGIDA E SIMPLIFICADA)
+
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -17,7 +19,7 @@ export default function TabsLayout() {
   const [userRole, setUserRole] = useState<UserRole>(null);
 
   const fetchAndSetUserRole = useCallback(async () => {
-    setLoading(true); 
+    // Não precisa do setLoading(true) aqui, pois já é setado no início do useEffect
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       const { data: profile } = await supabase
@@ -25,7 +27,7 @@ export default function TabsLayout() {
         .select('papel')
         .eq('id', user.id)
         .single();
-      setUserRole(profile ? profile.papel as UserRole : 'cliente'); // Fallback para cliente
+      setUserRole(profile ? profile.papel as UserRole : 'cliente');
     } else {
       setUserRole(null);
     }
@@ -33,9 +35,9 @@ export default function TabsLayout() {
   }, []);
 
   useEffect(() => {
+    setLoading(true); // Garante que o loading apareça ao re-autenticar
     fetchAndSetUserRole();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      // Se o evento for SIGNED_OUT, não precisa refazer o fetch, apenas limpa
       if (event === 'SIGNED_OUT') {
         setUserRole(null);
       } else {
@@ -67,77 +69,78 @@ export default function TabsLayout() {
     );
   }
 
-  if (!userRole) {
+  // Renderiza um layout de abas diferente para cada tipo de usuário
+  // Isso é mais robusto e evita condicionais 'href' complexas.
+  if (userRole === 'barbeiro') {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', backgroundColor: '#121212' }}>
-        <ActivityIndicator size="large" color="#E50914" />
-      </View>
+      <Tabs screenOptions={screenOptions} initialRouteName="painel">
+        <Tabs.Screen 
+          name="painel" 
+          options={{ 
+            title: 'Painel', 
+            tabBarIcon: ({ color, size }) => <TabBarIcon name="grid-outline" color={color} size={size} />, 
+          }} 
+        />
+        <Tabs.Screen
+          name="dashboard"
+          options={{
+            title: 'Dashboard',
+            tabBarIcon: ({ color, size }) => <TabBarIcon name="stats-chart" color={color} size={size} />,
+          }}
+        />
+        <Tabs.Screen 
+          name="perfil" 
+          options={{ 
+            title: 'Perfil', 
+            tabBarIcon: ({ color, size }) => <TabBarIcon name="person-outline" color={color} size={size} />,
+          }} 
+        />
+        {/* Telas ocultas ainda funcionam normalmente */}
+        <Tabs.Screen name="servicos" options={{ href: null }} />
+        <Tabs.Screen name="agenda" options={{ href: null }} />
+        <Tabs.Screen name="meus-agendamentos" options={{ href: null }} />
+        <Tabs.Screen name="editar-perfil" options={{ href: null }} />
+        <Tabs.Screen name="gerenciar-servicos" options={{ href: null }} />
+        <Tabs.Screen name="configurar-horarios" options={{ href: null }} />
+        <Tabs.Screen name="detalhes-barbeiro" options={{ href: null }} />
+        {/* A linha do historico-agendamentos foi removida */}
+      </Tabs>
     );
   }
 
+  // Layout padrão para CLIENTE (ou se não estiver logado, será redirecionado)
   return (
-    <Tabs 
-      screenOptions={screenOptions}
-      initialRouteName={userRole === 'barbeiro' ? 'painel' : 'servicos'}
-    >
-      {/* --- ROTA DO CLIENTE --- */}
+    <Tabs screenOptions={screenOptions} initialRouteName="servicos">
       <Tabs.Screen 
         name="servicos" 
         options={{ 
           title: 'Serviços', 
-          tabBarIcon: ({ color, size }) => <Ionicons name="cut-outline" color={color} size={size} />,
-          href: userRole === 'barbeiro' ? null : '/servicos'
+          tabBarIcon: ({ color, size }) => <TabBarIcon name="cut-outline" color={color} size={size} />,
         }} 
       />
-      
-      {/* --- ROTA DO BARBEIRO --- */}
-      <Tabs.Screen 
-        name="painel" 
-        options={{ 
-          title: 'Painel', 
-          tabBarIcon: ({ color, size }) => <Ionicons name="grid-outline" color={color} size={size} />, 
-          href: userRole === 'cliente' ? null : '/painel'
-        }} 
-      />
-
-      {/* ================================================================= */}
-      {/* <<< CÓDIGO ADICIONADO EXATAMENTE COMO VOCÊ PEDIU >>> */}
-      <Tabs.Screen
-        name="dashboard" // O nome do seu arquivo
-        options={{
-          title: 'Dashboard',
-          tabBarIcon: ({ color, size }) => <TabBarIcon name="stats-chart" color={color} size={size} />,
-          // Garante que a aba só apareça para o barbeiro
-          href: userRole === 'cliente' ? null : '/dashboard',
-        }}
-      />
-      {/* ================================================================= */}
-
-      {/* --- ROTAS COMPARTILHADAS --- */}
       <Tabs.Screen 
         name="agenda" 
         options={{ 
           title: 'Agendar', 
-          tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" color={color} size={size} />,
-          href: '/agenda'
+          tabBarIcon: ({ color, size }) => <TabBarIcon name="calendar-outline" color={color} size={size} />,
         }} 
       />
       <Tabs.Screen 
         name="perfil" 
         options={{ 
           title: 'Perfil', 
-          tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" color={color} size={size} />,
-          href: '/perfil'
+          tabBarIcon: ({ color, size }) => <TabBarIcon name="person-outline" color={color} size={size} />,
         }} 
       />
-      
-      {/* --- TELAS OCULTAS (Navegação interna) --- */}
+      {/* Telas ocultas */}
+      <Tabs.Screen name="painel" options={{ href: null }} />
+      <Tabs.Screen name="dashboard" options={{ href: null }} />
       <Tabs.Screen name="meus-agendamentos" options={{ href: null }} />
-      <Tabs.Screen name="historico-agendamentos" options={{ href: null }} />
       <Tabs.Screen name="editar-perfil" options={{ href: null }} />
       <Tabs.Screen name="gerenciar-servicos" options={{ href: null }} />
       <Tabs.Screen name="configurar-horarios" options={{ href: null }} />
       <Tabs.Screen name="detalhes-barbeiro" options={{ href: null }} />
+      {/* A linha do historico-agendamentos foi removida */}
     </Tabs>
   );
 }

@@ -1,74 +1,58 @@
-// Arquivo: app/_layout.js (Modificado para incluir o gatilho de atualização)
+// Arquivo: app/_layout.js (VERSÃO CORRIGIDA CONTRA LOOP INFINITO)
 
 import { Slot, useRouter, useSegments } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { AlertProvider } from '../contexts/AlertContext';
 import { ThemeProvider, useAppTheme } from '../contexts/ThemeContext';
 import { supabase } from '../supabaseClient';
 
-// Função para rodar a limpeza de agendamentos antigos
-const runStatusCleanup = async () => {
-  const { error } = await supabase.rpc('atualizar_status_agendamentos_concluidos');
-  if (error) {
-    // Usamos console.warn para não ser um erro alarmante, apenas um aviso
-    console.warn("Aviso: Não foi possível atualizar status de agendamentos antigos.", error.message);
-  }
-};
-
+// Componente interno para usar os hooks de contexto
 function AppContent() {
-  const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const segments = useSegments();
   const router = useRouter();
-  const { theme } = useAppTheme(); 
+  const segments = useSegments();
+  const { theme } = useAppTheme();
 
-  useEffect(() => {
-    const fetchInitialSession = async () => {
-      const { data: { session: initialSession } } = await supabase.auth.getSession();
-      setSession(initialSession);
-      
-      // =================================================================
-      // <<< O GATILHO FOI ADICIONADO AQUI >>>
-      // Se existe uma sessão inicial (usuário já logado), roda a limpeza.
-      if (initialSession) {
-        await runStatusCleanup();
-      }
-      // =================================================================
-
-      setLoading(false);
-    };
-
-    fetchInitialSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      setSession(newSession);
-      
-      // =================================================================
-      // <<< O GATILHO TAMBÉM FOI ADICIONADO AQUI >>>
-      // Se um novo login acontece (newSession não é nulo), roda a limpeza.
-      if (newSession) {
-        await runStatusCleanup();
-      }
-      // =================================================================
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (loading) return;
-
+  // Usamos useCallback para garantir que a função não seja recriada a cada renderização
+  const checkAuth = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    
     const inAuthGroup = segments[0] === '(auth)';
 
+    // Se o usuário tem sessão e NÃO está no grupo de abas, redireciona para dentro.
     if (session && segments[0] !== '(tabs)') {
-      router.replace('/(tabs)/perfil');
+      router.replace('/(tabs)/perfil'); 
     } 
+    // Se o usuário NÃO tem sessão e NÃO está no grupo de autenticação, redireciona para o login.
     else if (!session && !inAuthGroup) {
       router.replace('/(auth)/login');
     }
-  }, [session, loading, segments]);
+    
+    // Só para de carregar DEPOIS de toda a lógica de verificação e redirecionamento.
+    setLoading(false);
+  }, [router, segments]);
+
+
+  useEffect(() => {
+    // Verifica a autenticação assim que o componente monta
+    checkAuth();
+
+    // Adiciona o "ouvinte" para mudanças de estado (login/logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Se o usuário fez login ou logout, a rota precisa ser reavaliada.
+      // O redirecionamento já é cuidado pelo RootLayout, mas podemos forçar uma re-verificação se necessário.
+      // Simplesmente trocando a sessão, o useEffect principal será re-acionado.
+      // Para este caso, vamos simplificar e chamar o checkAuth de novo.
+      checkAuth();
+    });
+
+    // Limpa o "ouvinte" quando o componente desmonta para evitar vazamento de memória
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [checkAuth]); // A dependência agora é a função 'checkAuth'
 
   if (loading) {
     return (
