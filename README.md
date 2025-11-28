@@ -48,3 +48,44 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+## Executar localmente
+
+Siga estes passos para rodar o projeto localmente (Windows / PowerShell):
+
+1. Instale dependências:
+
+```powershell
+npm install
+```
+
+2. Crie um arquivo `.env` na raiz do projeto com as variáveis do Supabase (substitua pelos valores do seu projeto):
+
+```text
+EXPO_PUBLIC_SUPABASE_URL=https://<seu-projeto>.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<sua-anon-key>
+```
+
+> Observação: este repositório já inclui um arquivo `.env` de desenvolvimento. Substitua as chaves por suas credenciais reais para que autenticação e chamadas ao Supabase funcionem corretamente.
+
+3. Inicie o servidor de desenvolvimento (Expo):
+
+```powershell
+npm run start
+# ou rodar direto no web browser
+npm run web
+```
+
+4. Recomendações:
+
+- Use `npx expo start -c` se encontrar problemas de cache.
+- Para testar em um dispositivo Android, instale o `Expo Go` no celular ou configure um emulador Android.
+
+5. Linters e formatação:
+
+```powershell
+npm run lint
+npm run format
+```
+
+Se tiver problemas ao rodar, cole aqui a saída do terminal e eu te ajudo a resolver.
