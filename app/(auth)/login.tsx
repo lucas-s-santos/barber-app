@@ -1,6 +1,5 @@
 // Arquivo: app/(auth)/login.js (Com o novo design "Neon Blade" / "Cyber Sky")
 
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -12,6 +11,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Image,
 } from 'react-native';
 
 import { useAlert } from '../../contexts/AlertContext';
@@ -59,9 +59,15 @@ export default function LoginScreen() {
       style={[styles.container, { backgroundColor: theme.background }]} // <<< 2. Aplicamos a cor de fundo do tema
     >
       <View style={styles.header}>
-        <Ionicons name="cut-outline" size={60} color={theme.primary} />
-        <Text style={[styles.title, { color: theme.text }]}>BarberApp</Text>
-        <Text style={[styles.subtitle, { color: theme.subtext }]}>Bem-vindo de volta!</Text>
+        {/* Logo central na tela de login */}
+        <Image
+          source={require('../../assets/images/logo.jpg')}
+          style={styles.loginLogo}
+          resizeMode="contain"
+        />
+        <Text style={[styles.subtitle, { color: theme.subtext, marginTop: 8 }]}>
+          Bem-vindo de volta!
+        </Text>
       </View>
 
       <View style={styles.form}>
@@ -135,6 +141,10 @@ const styles = StyleSheet.create({
   },
   form: {
     width: '100%',
+  },
+  loginLogo: {
+    width: 220,
+    height: 88,
   },
   input: {
     padding: 18,

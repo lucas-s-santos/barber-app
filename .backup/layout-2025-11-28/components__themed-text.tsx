@@ -1,4 +1,5 @@
-import { StyleSheet, Text, type TextProps } from 'react-native';
+// Backup copy of components/themed-text.tsx - 2025-11-28
+export const __backup = `import { StyleSheet, Text, type TextProps } from 'react-native';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
 
@@ -16,7 +17,6 @@ export function ThemedText({
   ...rest
 }: ThemedTextProps) {
   const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
-  const tint = useThemeColor({}, 'tint');
 
   return (
     <Text
@@ -26,7 +26,7 @@ export function ThemedText({
         type === 'title' ? styles.title : undefined,
         type === 'defaultSemiBold' ? styles.defaultSemiBold : undefined,
         type === 'subtitle' ? styles.subtitle : undefined,
-        type === 'link' ? [styles.link, { color: tint }] : undefined,
+        type === 'link' ? styles.link : undefined,
         style,
       ]}
       {...rest}
@@ -59,3 +59,4 @@ const styles = StyleSheet.create({
     color: '#0a7ea4',
   },
 });
+`;

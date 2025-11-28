@@ -5,6 +5,7 @@ import { Tabs } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { supabase } from '../../supabaseClient';
+import { useAppTheme } from '../../contexts/ThemeContext';
 
 type UserRole = 'cliente' | 'barbeiro' | null;
 
@@ -23,6 +24,7 @@ const TabBarIcon = ({
 export default function TabsLayout() {
   const [loading, setLoading] = useState<boolean>(true);
   const [userRole, setUserRole] = useState<UserRole>(null);
+  const { theme } = useAppTheme();
 
   const fetchAndSetUserRole = useCallback(async () => {
     const {
@@ -61,13 +63,13 @@ export default function TabsLayout() {
   const screenOptions = {
     headerShown: false,
     tabBarStyle: {
-      backgroundColor: '#1E1E1E',
-      borderTopColor: '#333',
+      backgroundColor: theme.card,
+      borderTopColor: theme.border,
       height: 60,
       paddingBottom: 5,
     },
-    tabBarActiveTintColor: '#E50914',
-    tabBarInactiveTintColor: 'gray',
+    tabBarActiveTintColor: theme.primary,
+    tabBarInactiveTintColor: theme.icon,
   };
 
   if (loading) {

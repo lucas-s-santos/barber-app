@@ -1,4 +1,5 @@
-// Arquivo: app/_layout.js (VERSÃO CORRIGIDA CONTRA LOOP INFINITO)
+// Backup copy of app/_layout.tsx - 2025-11-28
+export const __backup = `// Arquivo: app/_layout.js (VERSÃO CORRIGIDA CONTRA LOOP INFINITO)
 
 import { Slot, useRouter, useSegments } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -7,7 +8,6 @@ import { ActivityIndicator, View } from 'react-native';
 import { AlertProvider } from '../contexts/AlertContext';
 import { ThemeProvider, useAppTheme } from '../contexts/ThemeContext';
 import { supabase } from '../supabaseClient';
-import Header from '../components/header';
 
 // Componente interno para usar os hooks de contexto
 function AppContent() {
@@ -66,14 +66,7 @@ function AppContent() {
     );
   }
 
-  return (
-    <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <Header />
-      <View style={{ flex: 1 }}>
-        <Slot />
-      </View>
-    </View>
-  );
+  return <Slot />;
 }
 
 export default function RootLayout() {
@@ -85,3 +78,4 @@ export default function RootLayout() {
     </ThemeProvider>
   );
 }
+`;

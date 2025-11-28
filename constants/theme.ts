@@ -1,47 +1,58 @@
-// Arquivo: constants/Colors.ts (ou o nome que ele tiver no seu projeto)
-
-/**
- * Abaixo estão as cores que são usadas no aplicativo, com as paletas "Neon Blade" e "Cyber Sky".
- */
-
-// Cor de destaque principal (Ação)
-const primaryColor = '#00E5FF'; // Ciano Elétrico
-
-// Cor de destaque secundária (Sucesso/Confirmação)
-const secondaryColor = '#FF007A'; // Magenta/Rosa Choque
+// Tema centralizado e tokens de design (paleta de barbeiro)
+// Cores inspiradas na paleta de barbearias: vermelho (primary), azul (accent) e neutros.
 
 export const Colors = {
   light: {
-    // Tema "Cyber Sky" 🏙️
-    text: '#0D1117', // Texto Principal (Azul Escuro)
-    subtext: '#57606A', // Texto Secundário (Cinza Médio)
-    background: '#F0F6FC', // Fundo Principal (Branco Gelo)
-    card: '#FFFFFF', // Fundo dos Cards (Branco Puro)
-    tint: primaryColor, // Cor de Destaque para ícones e elementos ativos
-    icon: '#57606A', // Cor de ícones inativos (Cinza Médio)
-    tabIconDefault: '#57606A', // Cor do ícone da aba inativa
-    tabIconSelected: primaryColor, // Cor do ícone da aba selecionada
-    border: '#D0D7DE', // Cor da Borda
-    primary: primaryColor, // Acesso direto à cor primária
-    secondary: secondaryColor, // Acesso direto à cor secundária
+    text: '#121212',
+    subtext: '#475569',
+    background: '#FFFFFF',
+    card: '#F8F9FB',
+    tint: '#C8102E', // Barber red
+    primary: '#C8102E',
+    accent: '#0047BB', // deep blue accent
+    success: '#16A34A',
+    warning: '#F59E0B',
+    border: '#E6E9EF',
+    icon: '#6B7280',
+    tabIconDefault: '#9CA3AF',
+    tabIconSelected: '#C8102E',
   },
   dark: {
-    // Tema "Neon Blade" 🌃
-    text: '#FFFFFF', // Texto Principal (Branco)
-    subtext: '#8B949E', // Texto Secundário (Cinza Claro)
-    background: '#0D1117', // Fundo Principal (Azul Quase Preto)
-    card: '#161B22', // Fundo dos Cards (Cinza-Azulado)
-    tint: primaryColor, // Cor de Destaque para ícones e elementos ativos
-    icon: '#8B949E', // Cor de ícones inativos (Cinza Claro)
-    tabIconDefault: '#8B949E', // Cor do ícone da aba inativa
-    tabIconSelected: primaryColor, // Cor do ícone da aba selecionada
-    border: '#30363D', // Cor da Borda
-    primary: primaryColor, // Acesso direto à cor primária
-    secondary: secondaryColor, // Acesso direto à cor secundária
+    text: '#FFFFFF',
+    subtext: '#9CA3AF',
+    background: '#0B0B0C',
+    card: '#0F1724',
+    tint: '#C8102E',
+    primary: '#C8102E',
+    accent: '#0047BB',
+    success: '#10B981',
+    warning: '#FBBF24',
+    border: '#111827',
+    icon: '#9CA3AF',
+    tabIconDefault: '#6B7280',
+    tabIconSelected: '#C8102E',
   },
 };
 
-// A seção de fontes pode permanecer a mesma, não precisamos alterá-la.
+export const Spacing = {
+  xxs: 4,
+  xs: 8,
+  sm: 12,
+  md: 16,
+  lg: 24,
+  xl: 32,
+};
+
+export const Typography = {
+  fontSizeSm: 12,
+  fontSizeBase: 16,
+  fontSizeLg: 20,
+  title: 28,
+  header: 20,
+};
+
 export const Fonts = {
-  // ... (seu código de fontes original)
+  regular: 'System',
+  medium: 'System',
+  bold: 'System',
 };
