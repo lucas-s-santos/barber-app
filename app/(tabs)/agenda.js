@@ -3,7 +3,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 
 // Hooks personalizados
@@ -12,7 +21,47 @@ import { useAppTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../supabaseClient';
 
 // Configuração do calendário para o português
-LocaleConfig.locales['pt-br'] = { monthNames: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'], monthNamesShort: ['Jan.', 'Fev.', 'Mar.', 'Abr.', 'Mai.', 'Jun.', 'Jul.', 'Ago.', 'Set.', 'Out.', 'Nov.', 'Dez.'], dayNames: ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'], dayNamesShort: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'], today: 'Hoje' };
+LocaleConfig.locales['pt-br'] = {
+  monthNames: [
+    'Janeiro',
+    'Fevereiro',
+    'Março',
+    'Abril',
+    'Maio',
+    'Junho',
+    'Julho',
+    'Agosto',
+    'Setembro',
+    'Outubro',
+    'Novembro',
+    'Dezembro',
+  ],
+  monthNamesShort: [
+    'Jan.',
+    'Fev.',
+    'Mar.',
+    'Abr.',
+    'Mai.',
+    'Jun.',
+    'Jul.',
+    'Ago.',
+    'Set.',
+    'Out.',
+    'Nov.',
+    'Dez.',
+  ],
+  dayNames: [
+    'Domingo',
+    'Segunda-feira',
+    'Terça-feira',
+    'Quarta-feira',
+    'Quinta-feira',
+    'Sexta-feira',
+    'Sábado',
+  ],
+  dayNamesShort: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
+  today: 'Hoje',
+};
 LocaleConfig.defaultLocale = 'pt-br';
 
 // ========================================================================
@@ -33,7 +82,7 @@ export default function AgendaScreen() {
   const [selectedDate, setSelectedDate] = useState(hoje);
   const [horariosDisponiveis, setHorariosDisponiveis] = useState([]);
   const [horarioParaConfirmar, setHorarioParaConfirmar] = useState(null);
-  
+
   const [loadingBarbeiros, setLoadingBarbeiros] = useState(true);
   const [loadingHorarios, setLoadingHorarios] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -42,16 +91,25 @@ export default function AgendaScreen() {
   // EFEITOS (LÓGICA DE DADOS)
   // ========================================================================
 
-  useFocusEffect(useCallback(() => {
-    if (params.servicoId && params.servicoNome && params.servicoDuracao) {
-      setServico({ id: params.servicoId, nome: params.servicoNome, duracao: parseInt(params.servicoDuracao, 10) });
-    }
-  }, [params]));
+  useFocusEffect(
+    useCallback(() => {
+      if (params.servicoId && params.servicoNome && params.servicoDuracao) {
+        setServico({
+          id: params.servicoId,
+          nome: params.servicoNome,
+          duracao: parseInt(params.servicoDuracao, 10),
+        });
+      }
+    }, [params]),
+  );
 
   useEffect(() => {
     const fetchBarbeiros = async () => {
       setLoadingBarbeiros(true);
-      const { data, error } = await supabase.from('perfis').select('id, nome_completo').eq('papel', 'barbeiro');
+      const { data, error } = await supabase
+        .from('perfis')
+        .select('id, nome_completo')
+        .eq('papel', 'barbeiro');
       if (error) showAlert('Erro', 'Não foi possível carregar a lista de barbeiros.');
       else {
         setBarbeiros(data || []);
@@ -62,7 +120,7 @@ export default function AgendaScreen() {
       setLoadingBarbeiros(false);
     };
     fetchBarbeiros();
-  }, []);
+  }, [showAlert]);
 
   useEffect(() => {
     const gerarHorarios = async () => {
@@ -75,14 +133,14 @@ export default function AgendaScreen() {
         p_data: selectedDate,
         p_duracao_servico_param: servico.duracao,
       });
-      
-      if (error) showAlert("Erro", `Não foi possível buscar os horários: ${error.message}`);
+
+      if (error) showAlert('Erro', `Não foi possível buscar os horários: ${error.message}`);
       else setHorariosDisponiveis(data || []);
       setLoadingHorarios(false);
     };
 
     gerarHorarios();
-  }, [selectedDate, barbeiroSelecionado, servico]);
+  }, [selectedDate, barbeiroSelecionado, servico, showAlert]);
 
   // ========================================================================
   // FUNÇÕES DE MANIPULAÇÃO DE EVENTOS
@@ -90,13 +148,15 @@ export default function AgendaScreen() {
 
   const handleAgendar = async () => {
     if (!horarioParaConfirmar || !servico || !barbeiroSelecionado) return;
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
-      showAlert("Erro", "Você precisa estar logado para agendar.");
+      showAlert('Erro', 'Você precisa estar logado para agendar.');
       return;
     }
     const dataHoraAgendamento = `${selectedDate}T${horarioParaConfirmar}`;
-    
+
     // =================================================================
     // <<< A CORREÇÃO FINAL E DEFINITIVA ESTÁ AQUI >>>
     // Criamos um objeto com todos os dados para garantir que o status 'pendente' seja enviado.
@@ -105,7 +165,7 @@ export default function AgendaScreen() {
       barbeiro_id: barbeiroSelecionado.id,
       servico_id: servico.id,
       data_agendamento: dataHoraAgendamento,
-      status: 'pendente' // Forçando o status correto
+      status: 'pendente', // Forçando o status correto
     };
 
     const { error } = await supabase.from('agendamentos').insert(novoAgendamento);
@@ -113,12 +173,12 @@ export default function AgendaScreen() {
 
     setModalVisible(false);
     if (error) {
-      showAlert("Erro ao Agendar", error.message);
+      showAlert('Erro ao Agendar', error.message);
     } else {
       showAlert(
-        "Solicitação Enviada!", 
+        'Solicitação Enviada!',
         `Seu pedido de horário para ${servico.nome} com ${barbeiroSelecionado.nome_completo} foi enviado. Aguarde a confirmação do barbeiro.`,
-        [{ text: 'OK', onPress: () => router.push('/(tabs)/meus-agendamentos') }]
+        [{ text: 'OK', onPress: () => router.push('/(tabs)/meus-agendamentos') }],
       );
     }
   };
@@ -130,17 +190,17 @@ export default function AgendaScreen() {
 
   const verDetalhesBarbeiro = (barbeiro) => {
     if (!servico) {
-      showAlert("Aguarde", "Carregando informações do serviço...");
+      showAlert('Aguarde', 'Carregando informações do serviço...');
       return;
     }
     router.push({
       pathname: '/(tabs)/detalhes-barbeiro',
-      params: { 
-        barbeiroId: barbeiro.id, 
-        servicoId: servico.id, 
-        servicoNome: servico.nome, 
-        servicoDuracao: servico.duracao 
-      }
+      params: {
+        barbeiroId: barbeiro.id,
+        servicoId: servico.id,
+        servicoNome: servico.nome,
+        servicoDuracao: servico.duracao,
+      },
     });
   };
 
@@ -154,9 +214,16 @@ export default function AgendaScreen() {
     return (
       <View style={[styles.containerCenter, { backgroundColor: theme.background }]}>
         <Ionicons name="cut-outline" size={60} color={theme.subtext} />
-        <Text style={[styles.placeholderText, { color: theme.subtext }]}>Escolha um serviço para começar.</Text>
-        <TouchableOpacity style={[styles.placeholderButton, { backgroundColor: theme.primary }]} onPress={() => router.push('/(tabs)/servicos')}>
-          <Text style={[styles.placeholderButtonText, { color: theme.background }]}>Ver Serviços</Text>
+        <Text style={[styles.placeholderText, { color: theme.subtext }]}>
+          Escolha um serviço para começar.
+        </Text>
+        <TouchableOpacity
+          style={[styles.placeholderButton, { backgroundColor: theme.primary }]}
+          onPress={() => router.push('/(tabs)/servicos')}
+        >
+          <Text style={[styles.placeholderButtonText, { color: theme.background }]}>
+            Ver Serviços
+          </Text>
         </TouchableOpacity>
       </View>
     );
@@ -164,20 +231,39 @@ export default function AgendaScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Modal animationType="fade" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
         <View style={styles.modalContainer}>
           <View style={[styles.modalView, { backgroundColor: theme.card }]}>
             <Text style={[styles.modalTitle, { color: theme.text }]}>Confirmar Solicitação</Text>
             <Text style={[styles.modalText, { color: theme.subtext }]}>
-              Serviço: <Text style={{ fontWeight: 'bold', color: theme.text }}>{servico.nome}</Text>{'\n'}
-              Barbeiro: <Text style={{ fontWeight: 'bold', color: theme.text }}>{barbeiroSelecionado?.nome_completo}</Text>{'\n'}
-              Data: <Text style={{ fontWeight: 'bold', color: theme.text }}>{selectedDate}</Text> às <Text style={{ fontWeight: 'bold', color: theme.text }}>{horarioParaConfirmar}</Text>
+              Serviço: <Text style={{ fontWeight: 'bold', color: theme.text }}>{servico.nome}</Text>
+              {'\n'}
+              Barbeiro:{' '}
+              <Text style={{ fontWeight: 'bold', color: theme.text }}>
+                {barbeiroSelecionado?.nome_completo}
+              </Text>
+              {'\n'}
+              Data: <Text style={{ fontWeight: 'bold', color: theme.text }}>
+                {selectedDate}
+              </Text> às{' '}
+              <Text style={{ fontWeight: 'bold', color: theme.text }}>{horarioParaConfirmar}</Text>
             </Text>
             <View style={styles.modalButtonContainer}>
-              <TouchableOpacity style={[styles.modalButton, { backgroundColor: theme.subtext }]} onPress={() => setModalVisible(false)}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: theme.subtext }]}
+                onPress={() => setModalVisible(false)}
+              >
                 <Text style={[styles.modalButtonText, { color: theme.text }]}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, { backgroundColor: theme.primary }]} onPress={handleAgendar}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: theme.primary }]}
+                onPress={handleAgendar}
+              >
                 <Text style={[styles.modalButtonText, { color: theme.background }]}>Confirmar</Text>
               </TouchableOpacity>
             </View>
@@ -185,7 +271,12 @@ export default function AgendaScreen() {
         </View>
       </Modal>
 
-      <View style={[styles.servicoInfoContainer, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+      <View
+        style={[
+          styles.servicoInfoContainer,
+          { backgroundColor: theme.card, borderBottomColor: theme.border },
+        ]}
+      >
         <Text style={[styles.servicoInfo, { color: theme.text }]}>Agendando: {servico.nome}</Text>
         <TouchableOpacity onPress={() => router.push('/(tabs)/servicos')}>
           <Text style={[styles.trocarButtonText, { color: theme.primary }]}>(Trocar)</Text>
@@ -195,7 +286,9 @@ export default function AgendaScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 150 }}>
         <View style={styles.sectionContainer}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>1. Escolha o Barbeiro</Text>
-          {loadingBarbeiros ? <ActivityIndicator color={theme.primary} /> :
+          {loadingBarbeiros ? (
+            <ActivityIndicator color={theme.primary} />
+          ) : (
             <FlatList
               data={barbeiros}
               horizontal
@@ -205,22 +298,44 @@ export default function AgendaScreen() {
               renderItem={({ item }) => {
                 const isSelected = barbeiroSelecionado?.id === item.id;
                 return (
-                  <TouchableOpacity 
-                    style={[styles.barbeiroCard, { backgroundColor: theme.card, borderColor: theme.border }, isSelected && { borderColor: theme.primary }]}
+                  <TouchableOpacity
+                    style={[
+                      styles.barbeiroCard,
+                      { backgroundColor: theme.card, borderColor: theme.border },
+                      isSelected && { borderColor: theme.primary },
+                    ]}
                     onPress={() => setBarbeiroSelecionado(item)}
                   >
-                    <Ionicons name="person-circle-outline" size={40} color={isSelected ? theme.primary : theme.subtext} />
-                    <Text style={[styles.barbeiroButtonText, { color: theme.text }]} numberOfLines={1}>{item.nome_completo.split(' ')[0]}</Text>
-                    
-                    <TouchableOpacity style={styles.detailsButton} onPress={() => verDetalhesBarbeiro(item)}>
-                      <Text style={[styles.detailsButtonText, { color: theme.primary }]}>Detalhes</Text>
+                    <Ionicons
+                      name="person-circle-outline"
+                      size={40}
+                      color={isSelected ? theme.primary : theme.subtext}
+                    />
+                    <Text
+                      style={[styles.barbeiroButtonText, { color: theme.text }]}
+                      numberOfLines={1}
+                    >
+                      {item.nome_completo.split(' ')[0]}
+                    </Text>
+
+                    <TouchableOpacity
+                      style={styles.detailsButton}
+                      onPress={() => verDetalhesBarbeiro(item)}
+                    >
+                      <Text style={[styles.detailsButtonText, { color: theme.primary }]}>
+                        Detalhes
+                      </Text>
                     </TouchableOpacity>
                   </TouchableOpacity>
                 );
               }}
-              ListEmptyComponent={<Text style={[styles.placeholderText, { color: theme.subtext }]}>Nenhum barbeiro encontrado.</Text>}
+              ListEmptyComponent={
+                <Text style={[styles.placeholderText, { color: theme.subtext }]}>
+                  Nenhum barbeiro encontrado.
+                </Text>
+              }
             />
-          }
+          )}
         </View>
 
         {barbeiroSelecionado && (
@@ -232,10 +347,19 @@ export default function AgendaScreen() {
               markedDates={{ [selectedDate]: { selected: true, selectedColor: theme.primary } }}
               minDate={hoje}
               theme={{
-                backgroundColor: theme.card, calendarBackground: theme.card, textSectionTitleColor: theme.primary,
-                selectedDayBackgroundColor: theme.primary, selectedDayTextColor: theme.background, todayTextColor: theme.primary,
-                dayTextColor: theme.text, textDisabledColor: theme.subtext, arrowColor: theme.primary, monthTextColor: theme.text,
-                textDayFontWeight: '500', textMonthFontWeight: 'bold', textDayHeaderFontWeight: 'bold',
+                backgroundColor: theme.card,
+                calendarBackground: theme.card,
+                textSectionTitleColor: theme.primary,
+                selectedDayBackgroundColor: theme.primary,
+                selectedDayTextColor: theme.background,
+                todayTextColor: theme.primary,
+                dayTextColor: theme.text,
+                textDisabledColor: theme.subtext,
+                arrowColor: theme.primary,
+                monthTextColor: theme.text,
+                textDayFontWeight: '500',
+                textMonthFontWeight: 'bold',
+                textDayHeaderFontWeight: 'bold',
               }}
             />
           </View>
@@ -243,16 +367,35 @@ export default function AgendaScreen() {
 
         {selectedDate && (
           <View style={styles.sectionContainer}>
-            <Text style={[styles.sectionTitle, { color: theme.text, textAlign: 'center' }]}>3. Escolha o Horário</Text>
-            {loadingHorarios ? <ActivityIndicator color={theme.primary} /> :
+            <Text style={[styles.sectionTitle, { color: theme.text, textAlign: 'center' }]}>
+              3. Escolha o Horário
+            </Text>
+            {loadingHorarios ? (
+              <ActivityIndicator color={theme.primary} />
+            ) : (
               <View style={styles.horariosGrid}>
-                {horariosDisponiveis.length > 0 ? horariosDisponiveis.map((horario, index) => (
-                  <TouchableOpacity key={`${horario.horario_disponivel}-${index}`} style={[styles.horarioButton, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={() => abrirModalConfirmacao(horario.horario_disponivel)}>
-                    <Text style={[styles.horarioText, { color: theme.text }]}>{horario.horario_disponivel}</Text>
-                  </TouchableOpacity>
-                )) : <Text style={[styles.placeholderText, { color: theme.subtext }]}>Nenhum horário disponível para este dia.</Text>}
+                {horariosDisponiveis.length > 0 ? (
+                  horariosDisponiveis.map((horario, index) => (
+                    <TouchableOpacity
+                      key={`${horario.horario_disponivel}-${index}`}
+                      style={[
+                        styles.horarioButton,
+                        { backgroundColor: theme.card, borderColor: theme.border },
+                      ]}
+                      onPress={() => abrirModalConfirmacao(horario.horario_disponivel)}
+                    >
+                      <Text style={[styles.horarioText, { color: theme.text }]}>
+                        {horario.horario_disponivel}
+                      </Text>
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <Text style={[styles.placeholderText, { color: theme.subtext }]}>
+                    Nenhum horário disponível para este dia.
+                  </Text>
+                )}
               </View>
-            }
+            )}
           </View>
         )}
       </ScrollView>
@@ -267,42 +410,99 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   containerCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   placeholderText: { color: 'gray', textAlign: 'center', marginTop: 20, fontSize: 16 },
-  placeholderButton: { paddingVertical: 15, paddingHorizontal: 40, borderRadius: 15, marginTop: 10 },
+  placeholderButton: {
+    paddingVertical: 15,
+    paddingHorizontal: 40,
+    borderRadius: 15,
+    marginTop: 10,
+  },
   placeholderButtonText: { fontSize: 16, fontWeight: 'bold' },
-  
-  servicoInfoContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 15, borderBottomWidth: 1 },
+
+  servicoInfoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 15,
+    borderBottomWidth: 1,
+  },
   servicoInfo: { fontSize: 18, fontWeight: 'bold' },
   trocarButtonText: { fontSize: 16, fontWeight: 'bold', marginLeft: 10 },
-  
+
   sectionContainer: { marginBottom: 10, marginTop: 20 },
   sectionTitle: { fontSize: 20, fontWeight: 'bold', marginLeft: 15, marginBottom: 15 },
-  
+
   barbeiroCard: {
-    borderRadius: 15, marginHorizontal: 5, borderWidth: 1.5,
-    paddingVertical: 15, paddingHorizontal: 10, alignItems: 'center',
-    width: 120, justifyContent: 'space-between',
+    borderRadius: 15,
+    marginHorizontal: 5,
+    borderWidth: 1.5,
+    paddingVertical: 15,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    width: 120,
+    justifyContent: 'space-between',
   },
   barbeiroButtonText: {
-    fontSize: 14, fontWeight: '600',
-    marginTop: 5, marginBottom: 10,
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 5,
+    marginBottom: 10,
   },
   detailsButton: {
-    paddingVertical: 4, paddingHorizontal: 12,
-    borderRadius: 10, backgroundColor: 'rgba(0, 229, 255, 0.1)',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0, 229, 255, 0.1)',
   },
   detailsButtonText: { fontSize: 12, fontWeight: 'bold' },
-  
-  calendario: { marginHorizontal: 10, borderRadius: 15, elevation: 2, shadowOpacity: 0.05, shadowRadius: 5 },
-  
-  horariosGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', paddingHorizontal: 10 },
-  horarioButton: { width: '22%', margin: '1.5%', padding: 12, borderRadius: 10, alignItems: 'center', borderWidth: 1 },
+
+  calendario: {
+    marginHorizontal: 10,
+    borderRadius: 15,
+    elevation: 2,
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+  },
+
+  horariosGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  horarioButton: {
+    width: '22%',
+    margin: '1.5%',
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
   horarioText: { fontSize: 16, fontWeight: '600' },
-  
-  modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.7)' },
-  modalView: { margin: 20, borderRadius: 20, padding: 25, alignItems: 'center', elevation: 5, width: '90%' },
+
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  modalView: {
+    margin: 20,
+    borderRadius: 20,
+    padding: 25,
+    alignItems: 'center',
+    elevation: 5,
+    width: '90%',
+  },
   modalTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 15 },
   modalText: { marginBottom: 25, textAlign: 'center', fontSize: 16, lineHeight: 24 },
   modalButtonContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '100%' },
-  modalButton: { borderRadius: 15, paddingVertical: 12, elevation: 2, flex: 1, marginHorizontal: 8, alignItems: 'center' },
+  modalButton: {
+    borderRadius: 15,
+    paddingVertical: 12,
+    elevation: 2,
+    flex: 1,
+    marginHorizontal: 8,
+    alignItems: 'center',
+  },
   modalButtonText: { fontWeight: 'bold', fontSize: 16 },
 });

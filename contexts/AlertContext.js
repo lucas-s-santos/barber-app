@@ -28,7 +28,7 @@ export function AlertProvider({ children }) {
           animationType="fade"
           onRequestClose={() => {
             // Permite fechar o modal no Android ao pressionar o botão de voltar
-            const defaultButton = alert.buttons?.find(b => b.style === 'cancel');
+            const defaultButton = alert.buttons?.find((b) => b.style === 'cancel');
             if (defaultButton?.onPress) {
               defaultButton.onPress();
             }
@@ -45,7 +45,9 @@ export function AlertProvider({ children }) {
                     key={index}
                     style={[
                       styles.button,
-                      button.style === 'destructive' ? styles.destructiveButton : styles.defaultButton
+                      button.style === 'destructive'
+                        ? styles.destructiveButton
+                        : styles.defaultButton,
                     ]}
                     onPress={() => {
                       if (button.onPress) {
@@ -54,10 +56,14 @@ export function AlertProvider({ children }) {
                       closeAlert();
                     }}
                   >
-                    <Text style={[
-                      styles.buttonText,
-                      button.style === 'destructive' ? styles.destructiveButtonText : styles.defaultButtonText
-                    ]}>
+                    <Text
+                      style={[
+                        styles.buttonText,
+                        button.style === 'destructive'
+                          ? styles.destructiveButtonText
+                          : styles.defaultButtonText,
+                      ]}
+                    >
                       {button.text}
                     </Text>
                   </TouchableOpacity>

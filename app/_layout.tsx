@@ -17,30 +17,33 @@ function AppContent() {
 
   // Usamos useCallback para garantir que a função não seja recriada a cada renderização
   const checkAuth = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
     const inAuthGroup = segments[0] === '(auth)';
 
     // Se o usuário tem sessão e NÃO está no grupo de abas, redireciona para dentro.
     if (session && segments[0] !== '(tabs)') {
-      router.replace('/(tabs)/perfil'); 
-    } 
+      router.replace('/(tabs)/perfil');
+    }
     // Se o usuário NÃO tem sessão e NÃO está no grupo de autenticação, redireciona para o login.
     else if (!session && !inAuthGroup) {
       router.replace('/(auth)/login');
     }
-    
+
     // Só para de carregar DEPOIS de toda a lógica de verificação e redirecionamento.
     setLoading(false);
   }, [router, segments]);
-
 
   useEffect(() => {
     // Verifica a autenticação assim que o componente monta
     checkAuth();
 
     // Adiciona o "ouvinte" para mudanças de estado (login/logout)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       // Se o usuário fez login ou logout, a rota precisa ser reavaliada.
       // O redirecionamento já é cuidado pelo RootLayout, mas podemos forçar uma re-verificação se necessário.
       // Simplesmente trocando a sessão, o useEffect principal será re-acionado.

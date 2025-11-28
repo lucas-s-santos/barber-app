@@ -3,7 +3,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 import { useAlert } from '../../contexts/AlertContext';
 import { useAppTheme } from '../../contexts/ThemeContext';
@@ -20,7 +29,7 @@ export default function LoginScreen() {
 
   async function signInWithEmail() {
     if (!email || !password) {
-      showAlert("Atenção", "Por favor, preencha seu email e senha.");
+      showAlert('Atenção', 'Por favor, preencha seu email e senha.');
       return;
     }
     setLoading(true);
@@ -28,14 +37,14 @@ export default function LoginScreen() {
       email: email,
       password: password,
     });
-   // ========================================================================
-// <<< A CORREÇÃO QUE VOCÊ PEDIU ESTÁ AQUI >>>
-// ========================================================================
+    // ========================================================================
+    // <<< A CORREÇÃO QUE VOCÊ PEDIU ESTÁ AQUI >>>
+    // ========================================================================
     if (error) {
       showAlert(
         'Erro no Login', // Título
         'Email ou senha inválidos. Por favor, tente novamente.', // Mensagem
-        [{ text: 'OK' }] // Array de botões
+        [{ text: 'OK' }], // Array de botões
       );
     }
 
@@ -45,8 +54,8 @@ export default function LoginScreen() {
 
   return (
     // KeyboardAvoidingView ajuda a tela a não ser coberta pelo teclado
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={[styles.container, { backgroundColor: theme.background }]} // <<< 2. Aplicamos a cor de fundo do tema
     >
       <View style={styles.header}>
@@ -56,40 +65,48 @@ export default function LoginScreen() {
       </View>
 
       <View style={styles.form}>
-        <TextInput 
-          style={[styles.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]} 
-          placeholder="Email" 
-          placeholderTextColor={theme.subtext} 
-          value={email} 
-          onChangeText={setEmail} 
-          autoCapitalize="none" 
-          keyboardType="email-address" 
+        <TextInput
+          style={[
+            styles.input,
+            { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
+          ]}
+          placeholder="Email"
+          placeholderTextColor={theme.subtext}
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
         />
-        <TextInput 
-          style={[styles.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]} 
-          placeholder="Senha" 
-          placeholderTextColor={theme.subtext} 
-          value={password} 
-          onChangeText={setPassword} 
-          secureTextEntry 
+        <TextInput
+          style={[
+            styles.input,
+            { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
+          ]}
+          placeholder="Senha"
+          placeholderTextColor={theme.subtext}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
         />
-        
+
         {/* Botão Principal com o novo estilo */}
-        <TouchableOpacity 
-          style={[styles.button, { backgroundColor: theme.primary }]} 
-          onPress={signInWithEmail} 
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: theme.primary }]}
+          onPress={signInWithEmail}
           disabled={loading}
         >
-          {loading 
-            ? <ActivityIndicator color={theme.background} /> 
-            : <Text style={[styles.buttonText, { color: theme.background }]}>Entrar</Text>
-          }
+          {loading ? (
+            <ActivityIndicator color={theme.background} />
+          ) : (
+            <Text style={[styles.buttonText, { color: theme.background }]}>Entrar</Text>
+          )}
         </TouchableOpacity>
       </View>
 
       <TouchableOpacity style={styles.linkButton} onPress={() => router.push('/(auth)/cadastro')}>
         <Text style={[styles.linkText, { color: theme.subtext }]}>
-          Não tem uma conta? <Text style={{ fontWeight: 'bold', color: theme.primary }}>Cadastre-se</Text>
+          Não tem uma conta?{' '}
+          <Text style={{ fontWeight: 'bold', color: theme.primary }}>Cadastre-se</Text>
         </Text>
       </TouchableOpacity>
     </KeyboardAvoidingView>

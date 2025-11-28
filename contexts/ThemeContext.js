@@ -17,10 +17,10 @@ const ThemeContext = createContext(initialThemeState);
 export const ThemeProvider = ({ children }) => {
   const systemScheme = useColorScheme();
   const [themeMode, setThemeMode] = useState('system');
-  
+
   // <<< MUDANÇA 2: O estado inicial agora é baseado no tema do sistema >>>
   const [activeTheme, setActiveTheme] = useState(
-    systemScheme === 'dark' ? Colors.dark : Colors.light
+    systemScheme === 'dark' ? Colors.dark : Colors.light,
   );
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export const ThemeProvider = ({ children }) => {
           setThemeMode(savedMode);
         }
       } catch (e) {
-        console.error("Failed to load theme mode from storage", e);
+        console.error('Failed to load theme mode from storage', e);
       }
     };
     loadThemeMode();
@@ -54,7 +54,7 @@ export const ThemeProvider = ({ children }) => {
       setThemeMode(mode);
       await AsyncStorage.setItem('themeMode', mode);
     } catch (e) {
-      console.error("Failed to save theme mode to storage", e);
+      console.error('Failed to save theme mode to storage', e);
     }
   }, []);
 

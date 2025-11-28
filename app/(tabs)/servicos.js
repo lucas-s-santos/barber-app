@@ -3,7 +3,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 import { useAlert } from '../../contexts/AlertContext';
 import { useAppTheme } from '../../contexts/ThemeContext';
@@ -35,19 +42,19 @@ export default function ServicosScreen() {
       setLoading(false);
     }
     fetchServicos();
-  }, []);
+  }, [showAlert]);
 
   const handleProceedToAgenda = () => {
     if (!servicoSelecionado) {
-      showAlert("Atenção", "Por favor, selecione um serviço para continuar.");
+      showAlert('Atenção', 'Por favor, selecione um serviço para continuar.');
       return;
     }
     router.push({
       pathname: '/(tabs)/agenda',
-      params: { 
-        servicoId: servicoSelecionado.id, 
+      params: {
+        servicoId: servicoSelecionado.id,
         servicoNome: servicoSelecionado.nome,
-        servicoDuracao: servicoSelecionado.duracao_minutos
+        servicoDuracao: servicoSelecionado.duracao_minutos,
       },
     });
   };
@@ -67,23 +74,27 @@ export default function ServicosScreen() {
     };
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[
-          styles.cardContainer, 
+          styles.cardContainer,
           { backgroundColor: theme.card, borderColor: theme.border },
-          isSelected && { borderColor: theme.primary, backgroundColor: theme.card } // Destaque quando selecionado
-        ]} 
+          isSelected && { borderColor: theme.primary, backgroundColor: theme.card }, // Destaque quando selecionado
+        ]}
         onPress={() => setServicoSelecionado(item)}
       >
         <View style={[styles.iconContainer, isSelected && { backgroundColor: theme.primary }]}>
-          <Ionicons 
-            name={getIconName(item.nome)} 
-            size={32} 
-            color={isSelected ? theme.card : theme.primary} 
+          <Ionicons
+            name={getIconName(item.nome)}
+            size={32}
+            color={isSelected ? theme.card : theme.primary}
           />
         </View>
-        <Text style={[styles.cardNome, { color: theme.text }]} numberOfLines={1}>{item.nome}</Text>
-        <Text style={[styles.cardDuracao, { color: theme.subtext }]}>{item.duracao_minutos} min</Text>
+        <Text style={[styles.cardNome, { color: theme.text }]} numberOfLines={1}>
+          {item.nome}
+        </Text>
+        <Text style={[styles.cardDuracao, { color: theme.subtext }]}>
+          {item.duracao_minutos} min
+        </Text>
         <Text style={[styles.cardPreco, { color: theme.text }]}>
           {Number(item.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
         </Text>
@@ -111,15 +122,27 @@ export default function ServicosScreen() {
           <Text style={[styles.title, { color: theme.text }]}>Nossos Serviços</Text>
         }
         ListEmptyComponent={
-          <Text style={[styles.emptyText, { color: theme.subtext }]}>Nenhum serviço disponível.</Text>
+          <Text style={[styles.emptyText, { color: theme.subtext }]}>
+            Nenhum serviço disponível.
+          </Text>
         }
       />
 
       {/* Botão de Prosseguir com o novo design */}
       {servicoSelecionado && (
-        <View style={[styles.footer, { backgroundColor: theme.background, borderTopColor: theme.border }]}>
-          <TouchableOpacity style={[styles.proceedButton, { backgroundColor: theme.primary }]} onPress={handleProceedToAgenda}>
-            <Text style={[styles.proceedButtonText, { color: theme.background }]}>Agendar Serviço</Text>
+        <View
+          style={[
+            styles.footer,
+            { backgroundColor: theme.background, borderTopColor: theme.border },
+          ]}
+        >
+          <TouchableOpacity
+            style={[styles.proceedButton, { backgroundColor: theme.primary }]}
+            onPress={handleProceedToAgenda}
+          >
+            <Text style={[styles.proceedButtonText, { color: theme.background }]}>
+              Agendar Serviço
+            </Text>
             <Ionicons name="arrow-forward-outline" size={20} color={theme.background} />
           </TouchableOpacity>
         </View>
@@ -132,9 +155,15 @@ export default function ServicosScreen() {
 const styles = StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   container: { flex: 1 },
-  title: { fontSize: 32, fontWeight: 'bold', textAlign: 'center', marginVertical: 20, marginTop: 40 },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginVertical: 20,
+    marginTop: 40,
+  },
   listContainer: { paddingHorizontal: 10, paddingBottom: 120 }, // Espaço para o botão flutuante
-  
+
   cardContainer: {
     flex: 1,
     margin: 8,
@@ -167,9 +196,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 10,
   },
-  
+
   emptyText: { textAlign: 'center', marginTop: 50, fontSize: 16 },
-  
+
   footer: {
     position: 'absolute',
     bottom: 0,

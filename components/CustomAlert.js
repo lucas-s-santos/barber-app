@@ -5,18 +5,24 @@ const CustomAlert = ({ visible, title, message, buttons, onDismiss }) => {
   if (!visible) return null;
 
   return (
-    <Modal
-      transparent={true}
-      animationType="fade"
-      visible={visible}
-      onRequestClose={onDismiss}
-    >
+    <Modal transparent={true} animationType="fade" visible={visible} onRequestClose={onDismiss}>
       <View style={styles.modalOverlay}>
         <View style={styles.alertContainer}>
           <View style={styles.header}>
-            {title === 'Sucesso!' && <Ionicons name="checkmark-circle-outline" size={24} color="#34D399" style={styles.icon} />}
-            {title === 'Erro' && <Ionicons name="close-circle-outline" size={24} color="#E50914" style={styles.icon} />}
-            {title === 'Confirmar Cancelamento' && <Ionicons name="warning-outline" size={24} color="#f59e0b" style={styles.icon} />}
+            {title === 'Sucesso!' && (
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={24}
+                color="#34D399"
+                style={styles.icon}
+              />
+            )}
+            {title === 'Erro' && (
+              <Ionicons name="close-circle-outline" size={24} color="#E50914" style={styles.icon} />
+            )}
+            {title === 'Confirmar Cancelamento' && (
+              <Ionicons name="warning-outline" size={24} color="#f59e0b" style={styles.icon} />
+            )}
             <Text style={styles.title}>{title}</Text>
           </View>
           <Text style={styles.message}>{message}</Text>
@@ -28,15 +34,17 @@ const CustomAlert = ({ visible, title, message, buttons, onDismiss }) => {
                   styles.button,
                   button.style === 'destructive' ? styles.destructiveButton : {},
                   button.style === 'cancel' ? styles.cancelButton : {},
-                  buttons.length === 1 ? styles.fullWidthButton : {}
+                  buttons.length === 1 ? styles.fullWidthButton : {},
                 ]}
                 onPress={button.onPress}
               >
-                <Text style={[
-                  styles.buttonText,
-                  button.style === 'destructive' ? styles.destructiveButtonText : {},
-                  button.style === 'cancel' ? styles.cancelButtonText : {}
-                ]}>
+                <Text
+                  style={[
+                    styles.buttonText,
+                    button.style === 'destructive' ? styles.destructiveButtonText : {},
+                    button.style === 'cancel' ? styles.cancelButtonText : {},
+                  ]}
+                >
                   {button.text}
                 </Text>
               </TouchableOpacity>
@@ -115,7 +123,7 @@ const styles = StyleSheet.create({
   },
   fullWidthButton: {
     flex: 1, // Faz o botão ocupar todo o espaço se for o único
-  }
+  },
 });
 
 export default CustomAlert;
