@@ -68,6 +68,7 @@ export default function PainelScreen() {
   const [loading, setLoading] = useState(true);
   const [solicitacoes, setSolicitacoes] = useState([]);
   const [agendamentosDoDia, setAgendamentosDoDia] = useState([]);
+  const [clientesAtendidos, setClientesAtendidos] = useState([]);
   const [selectedDate, setSelectedDate] = useState(hoje);
   const [user, setUser] = useState(null);
 
@@ -102,21 +103,36 @@ export default function PainelScreen() {
         .lte('data_agendamento', fimDoDia)
         .order('data_agendamento', { ascending: true });
 
-      // Executa as duas consultas em paralelo
-      const [solicitacoesResult, agendamentosDiaResult] = await Promise.all([
-        solicitacoesPromise,
-        agendamentosDiaPromise,
-      ]);
+      // --- CONSULTA 3: BUSCA CLIENTES ATENDIDOS (CONCLUÍDOS) DO DIA ---
+      const clientesAtendidosPromise = supabase
+        .from('agendamentos')
+        .select(
+          `id, data_agendamento, status, cliente:cliente_id ( nome_completo ), servico:servico_id ( nome, preco )`,
+        )
+        .eq('barbeiro_id', barbeiroId)
+        .eq('status', 'concluido')
+        .gte('data_agendamento', inicioDoDia)
+        .lte('data_agendamento', fimDoDia)
+        .order('data_agendamento', { ascending: false });
 
-      if (solicitacoesResult.error || agendamentosDiaResult.error) {
+      // Executa as três consultas em paralelo
+      const [solicitacoesResult, agendamentosDiaResult, clientesAtendidosResult] =
+        await Promise.all([solicitacoesPromise, agendamentosDiaPromise, clientesAtendidosPromise]);
+
+      if (
+        solicitacoesResult.error ||
+        agendamentosDiaResult.error ||
+        clientesAtendidosResult.error
+      ) {
         console.error(
           'Erro ao buscar dados:',
-          solicitacoesResult.error || agendamentosDiaResult.error,
+          solicitacoesResult.error || agendamentosDiaResult.error || clientesAtendidosResult.error,
         );
         showAlert('Erro', 'Não foi possível carregar os dados da agenda.');
       } else {
         setSolicitacoes(solicitacoesResult.data || []);
         setAgendamentosDoDia(agendamentosDiaResult.data || []);
+        setClientesAtendidos(clientesAtendidosResult.data || []);
       }
       setLoading(false);
     },
@@ -288,6 +304,64 @@ export default function PainelScreen() {
           )}
         </View>
       </View>
+
+      <View style={styles.sectionContainer}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>
+          Clientes Atendidos Hoje ({clientesAtendidos.length})
+        </Text>
+        <View style={[styles.card, { backgroundColor: theme.card }]}>
+          {loading ? (
+            <ActivityIndicator color={theme.primary} />
+          ) : clientesAtendidos.length > 0 ? (
+            <>
+              {clientesAtendidos.map((item) => (
+                <View
+                  key={item.id}
+                  style={[styles.itemContainer, { borderBottomColor: theme.border }]}
+                >
+                  <View style={styles.itemTextContainer}>
+                    <Text style={[styles.itemText, { color: theme.text }]}>
+                      {formatarHora(item.data_agendamento)} - {item.cliente.nome_completo}
+                    </Text>
+                    <Text style={[styles.itemSubText, { color: theme.subtext }]}>
+                      {item.servico.nome}
+                      {item.servico.preco ? ` • R$ ${item.servico.preco.toFixed(2)}` : ''}
+                    </Text>
+                  </View>
+                  <View style={[styles.badge, { backgroundColor: theme.successBackground }]}>
+                    <Ionicons name="checkmark-circle" size={20} color={theme.success} />
+                  </View>
+                </View>
+              ))}
+              <View style={styles.totalContainer}>
+                <Text style={[styles.totalLabel, { color: theme.subtext }]}>
+                  Total de atendimentos:
+                </Text>
+                <Text style={[styles.totalValue, { color: theme.primary }]}>
+                  {clientesAtendidos.length}
+                </Text>
+              </View>
+              {clientesAtendidos.some((item) => item.servico.preco) && (
+                <View style={styles.totalContainer}>
+                  <Text style={[styles.totalLabel, { color: theme.subtext }]}>
+                    Receita estimada:
+                  </Text>
+                  <Text style={[styles.totalValue, { color: theme.success }]}>
+                    R${' '}
+                    {clientesAtendidos
+                      .reduce((sum, item) => sum + (item.servico.preco || 0), 0)
+                      .toFixed(2)}
+                  </Text>
+                </View>
+              )}
+            </>
+          ) : (
+            <Text style={[styles.placeholderText, { color: theme.subtext }]}>
+              Nenhum cliente atendido neste dia.
+            </Text>
+          )}
+        </View>
+      </View>
     </ScrollView>
   );
 }
@@ -311,4 +385,16 @@ const styles = StyleSheet.create({
   itemActions: { flexDirection: 'row' },
   actionButton: { padding: 8, borderRadius: 50, marginLeft: 10 },
   calendario: { borderRadius: 15, elevation: 2, shadowOpacity: 0.05, shadowRadius: 5 },
+  badge: { padding: 6, borderRadius: 20 },
+  totalContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 15,
+    marginTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  totalLabel: { fontSize: 16, fontWeight: '600' },
+  totalValue: { fontSize: 18, fontWeight: 'bold' },
 });
