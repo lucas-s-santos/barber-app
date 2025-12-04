@@ -122,27 +122,18 @@ export default function PerfilScreen() {
         </View>
 
         <View style={styles.menu}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Conta</Text>
           <MenuItem
             icon="person-outline"
             text="Editar Perfil"
             onPress={() => router.push('/(tabs)/editar-perfil')}
           />
-          <MenuItem
-            icon="calendar-outline"
-            text="Próximos Agendamentos"
-            onPress={() => router.push('/(tabs)/meus-agendamentos')}
-          />
-          <MenuItem
-            icon="archive-outline"
-            text="Histórico de Agendamentos"
-            onPress={() => router.push('/(tabs)/historico-agendamentos')}
-          />
 
           {profile.papel === 'barbeiro' && (
             <>
-              {/* ======================================================================== */}
-              {/* <<< O BOTÃO REDUNDANTE FOI REMOVIDO DAQUI >>> */}
-              {/* ======================================================================== */}
+              <Text style={[styles.sectionTitle, { color: theme.text, marginTop: 20 }]}>
+                Gerenciamento
+              </Text>
               <MenuItem
                 icon="cut-outline"
                 text="Gerenciar Serviços"
@@ -155,6 +146,45 @@ export default function PerfilScreen() {
               />
             </>
           )}
+
+          <Text style={[styles.sectionTitle, { color: theme.text, marginTop: 20 }]}>Geral</Text>
+          <MenuItem
+            icon="notifications-outline"
+            text="Notificações"
+            onPress={() =>
+              Alert.alert('Em breve', 'Configurações de notificações em desenvolvimento.')
+            }
+          />
+          <MenuItem
+            icon="help-circle-outline"
+            text="Ajuda e Suporte"
+            onPress={() =>
+              Alert.alert(
+                'Ajuda e Suporte',
+                'Entre em contato conosco:\n\n📧 Email: suporte@barbeapp.com\n📱 WhatsApp: (11) 98765-4321',
+              )
+            }
+          />
+          <MenuItem
+            icon="information-circle-outline"
+            text="Sobre o App"
+            onPress={() =>
+              Alert.alert(
+                'Barber App',
+                'Versão 1.0.0\n\nSistema de agendamento para barbearias.\n\n© 2025 Barber App. Todos os direitos reservados.',
+              )
+            }
+          />
+          <MenuItem
+            icon="shield-checkmark-outline"
+            text="Política de Privacidade"
+            onPress={() =>
+              Alert.alert(
+                'Política de Privacidade',
+                'Seus dados são protegidos e utilizados apenas para melhorar sua experiência no aplicativo.',
+              )
+            }
+          />
         </View>
       </ScrollView>
     </View>
@@ -190,6 +220,15 @@ const styles = StyleSheet.create({
   },
   themeButton: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 20 },
   menu: { paddingHorizontal: 20 },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 10,
+    marginLeft: 5,
+    opacity: 0.7,
+  },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',

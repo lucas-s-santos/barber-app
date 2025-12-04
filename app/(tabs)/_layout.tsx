@@ -149,6 +149,15 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="agendamentos"
+        options={{
+          title: 'Agendamentos',
+          tabBarIcon: ({ color, size }) => (
+            <TabBarIcon name="list-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="perfil"
         options={{
           title: 'Perfil',
@@ -162,14 +171,11 @@ export default function TabsLayout() {
       <Tabs.Screen name="painel" options={{ href: null }} />
       <Tabs.Screen name="dashboard" options={{ href: null }} />
       <Tabs.Screen name="meus-agendamentos" options={{ href: null }} />
+      <Tabs.Screen name="historico-agendamentos" options={{ href: null }} />
       <Tabs.Screen name="editar-perfil" options={{ href: null }} />
       <Tabs.Screen name="gerenciar-servicos" options={{ href: null }} />
       <Tabs.Screen name="configurar-horarios" options={{ href: null }} />
       <Tabs.Screen name="detalhes-barbeiro" options={{ href: null }} />
-      {/* ======================================================================== */}
-      {/* <<< A LINHA QUE FALTAVA ESTÁ AQUI TAMBÉM >>> */}
-      {/* ======================================================================== */}
-      <Tabs.Screen name="historico-agendamentos" options={{ href: null }} />
     </Tabs>
   );
 }
