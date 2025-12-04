@@ -3,7 +3,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  RefreshControl,
+  SectionList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 import { useAlert } from '../../contexts/AlertContext';
 import { useAppTheme } from '../../contexts/ThemeContext';
@@ -30,7 +37,7 @@ export default function HistoricoAgendamentosScreen() {
     const { data, error } = await supabase
       .from('agendamentos')
       .select(
-        `id, data_agendamento, status, servico:servico_id(nome), barbeiro:barbeiro_id(nome_completo)`,
+        `id, data_agendamento, status, servico:servico_id(nome,preco), barbeiro:barbeiro_id(nome_completo)`,
       )
       .eq('cliente_id', user.id)
       .in('status', ['concluido', 'cancelado', 'ausente'])
@@ -58,6 +65,33 @@ export default function HistoricoAgendamentosScreen() {
     });
   }, [agendamentos, activeTab]);
 
+  // Agrupa por mês/ano
+  const sections = useMemo(() => {
+    const groups = new Map();
+    historicoFiltrado.forEach((item) => {
+      const dt = new Date(item.data_agendamento);
+      // usar timezone local
+      const month = dt.toLocaleString('pt-BR', { month: 'long' });
+      const year = dt.getFullYear();
+      const key = `${year}-${dt.getMonth() + 1}`; // e.g. 2025-11
+      const title = `${month.charAt(0).toUpperCase() + month.slice(1)} ${year}`;
+      if (!groups.has(key)) groups.set(key, { title, data: [] });
+      groups.get(key).data.push(item);
+    });
+
+    // ordenar keys descendente
+    const sorted = Array.from(groups.entries())
+      .sort((a, b) => {
+        const [ay, am] = a[0].split('-').map(Number);
+        const [by, bm] = b[0].split('-').map(Number);
+        if (ay !== by) return by - ay;
+        return bm - am;
+      })
+      .map(([, v]) => v);
+
+    return sorted;
+  }, [historicoFiltrado]);
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchHistorico();
@@ -76,10 +110,15 @@ export default function HistoricoAgendamentosScreen() {
         <Text style={[styles.headerTitle, { color: theme.text }]}>Histórico de Agendamentos</Text>
       </View>
 
-      <FlatList
-        data={historicoFiltrado}
+      <SectionList
+        sections={sections}
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => <HistoricoItem item={item} theme={theme} />}
+        renderSectionHeader={({ section: { title } }) => (
+          <View style={{ paddingVertical: 8 }}>
+            <Text style={[{ fontWeight: '700', fontSize: 16, color: theme.text }]}>{title}</Text>
+          </View>
+        )}
         contentContainerStyle={{ padding: 15 }}
         ListHeaderComponent={
           <View style={styles.historyTabContainer}>
@@ -174,6 +213,14 @@ const HistoricoItem = ({ item, theme }) => {
     >
       <View style={styles.itemInfo}>
         <Text style={[styles.itemService, { color: theme.text }]}>{item.servico.nome}</Text>
+        {item.servico.preco != null && (
+          <Text style={[styles.itemPrice, { color: theme.subtext }]}>
+            {Number(item.servico.preco).toLocaleString('pt-BR', {
+              style: 'currency',
+              currency: 'BRL',
+            })}
+          </Text>
+        )}
         <Text style={[styles.itemBarber, { color: theme.subtext }]}>
           com {item.barbeiro.nome_completo}
         </Text>
@@ -220,6 +267,7 @@ const styles = StyleSheet.create({
   itemService: { fontSize: 16, fontWeight: 'bold' },
   itemBarber: { fontSize: 14, marginTop: 2 },
   itemDate: { fontSize: 14, marginTop: 8, fontWeight: '500' },
+  itemPrice: { fontSize: 14, marginTop: 4, fontWeight: '600' },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',

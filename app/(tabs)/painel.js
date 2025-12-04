@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 
+import NextAppointment from '../../components/next-appointment';
+import UpcomingAppointments from '../../components/upcoming-appointments';
 import { useAlert } from '../../contexts/AlertContext';
 import { useAppTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../supabaseClient';
@@ -173,6 +175,10 @@ export default function PainelScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
       contentContainerStyle={{ paddingBottom: 50 }}
     >
+      <View style={styles.sectionContainer}>
+        <NextAppointment />
+        <UpcomingAppointments limit={4} />
+      </View>
       <View style={styles.sectionContainer}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>
           Solicitações Pendentes ({solicitacoes.length})
