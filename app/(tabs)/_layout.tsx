@@ -4,8 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { supabase } from '../../supabaseClient';
 import { useAppTheme } from '../../contexts/ThemeContext';
+import { supabase } from '../../supabaseClient';
 
 type UserRole = 'cliente' | 'barbeiro' | null;
 
@@ -115,6 +115,7 @@ export default function TabsLayout() {
         <Tabs.Screen name="servicos" options={{ href: null }} />
         <Tabs.Screen name="agenda" options={{ href: null }} />
         <Tabs.Screen name="meus-agendamentos" options={{ href: null }} />
+        <Tabs.Screen name="agendamentos" options={{ href: null }} />
         <Tabs.Screen name="editar-perfil" options={{ href: null }} />
         <Tabs.Screen name="gerenciar-servicos" options={{ href: null }} />
         <Tabs.Screen name="configurar-horarios" options={{ href: null }} />
@@ -123,6 +124,11 @@ export default function TabsLayout() {
         {/* <<< A LINHA QUE FALTAVA ESTÁ AQUI >>> */}
         {/* ======================================================================== */}
         <Tabs.Screen name="historico-agendamentos" options={{ href: null }} />
+        <Tabs.Screen name="notificacoes" options={{ href: null }} />
+        <Tabs.Screen name="ajuda" options={{ href: null }} />
+        <Tabs.Screen name="sobre" options={{ href: null }} />
+        <Tabs.Screen name="politica" options={{ href: null }} />
+        <Tabs.Screen name="termos" options={{ href: null }} />
       </Tabs>
     );
   }
@@ -176,6 +182,11 @@ export default function TabsLayout() {
       <Tabs.Screen name="gerenciar-servicos" options={{ href: null }} />
       <Tabs.Screen name="configurar-horarios" options={{ href: null }} />
       <Tabs.Screen name="detalhes-barbeiro" options={{ href: null }} />
+      <Tabs.Screen name="notificacoes" options={{ href: null }} />
+      <Tabs.Screen name="ajuda" options={{ href: null }} />
+      <Tabs.Screen name="sobre" options={{ href: null }} />
+      <Tabs.Screen name="politica" options={{ href: null }} />
+      <Tabs.Screen name="termos" options={{ href: null }} />
     </Tabs>
   );
 }

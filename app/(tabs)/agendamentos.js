@@ -1,4 +1,4 @@
-// Arquivo: app/(tabs)/agendamentos.js - Tela unificada de agendamentos do cliente
+// Arquivo: app/(tabs)/agendamentos.js - Tela de agendamentos com filtros e melhor organização
 
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -25,6 +26,8 @@ export default function AgendamentosScreen() {
   const [historico, setHistorico] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('proximos');
+  const [filtroHistorico, setFiltroHistorico] = useState('todos');
+  const [filtroProximos, setFiltroProximos] = useState('todos');
 
   const fetchAgendamentos = useCallback(async () => {
     const {
@@ -35,7 +38,7 @@ export default function AgendamentosScreen() {
       return;
     }
 
-    // Buscar próximos agendamentos (pendentes e confirmados)
+    // Buscar próximos agendamentos (pendentes e confirmados) - ordenados por data
     const { data: proximosData, error: proximosError } = await supabase
       .from('agendamentos')
       .select(
@@ -157,7 +160,10 @@ export default function AgendamentosScreen() {
 
         {podeSerCancelado && (
           <TouchableOpacity
-            style={[styles.cancelButton, { backgroundColor: theme.errorBackground }]}
+            style={[
+              styles.cancelButton,
+              { backgroundColor: theme.errorBackground, borderColor: theme.error, borderWidth: 1 },
+            ]}
             onPress={() => handleCancelar(item.id)}
           >
             <Ionicons name="trash-outline" size={18} color={theme.error} />
@@ -168,7 +174,28 @@ export default function AgendamentosScreen() {
     );
   };
 
-  const dataToShow = activeTab === 'proximos' ? proximos : historico;
+  // Filtrar próximos por status
+  const proximosFiltrados =
+    filtroProximos === 'todos'
+      ? proximos
+      : proximos.filter((item) => item.status === filtroProximos);
+
+  // Ordenar próximos dando prioridade a pendentes e depois por data/hora
+  const proximosOrdenados = [...proximosFiltrados].sort((a, b) => {
+    const prioridade = { pendente: 0, confirmado: 1 };
+    const pa = prioridade[a.status] ?? 99;
+    const pb = prioridade[b.status] ?? 99;
+    if (pa !== pb) return pa - pb;
+    return new Date(a.data_agendamento) - new Date(b.data_agendamento);
+  });
+
+  // Filtrar histórico por status
+  const historicoFiltrado =
+    filtroHistorico === 'todos'
+      ? historico
+      : historico.filter((item) => item.status === filtroHistorico);
+
+  const dataToShow = activeTab === 'proximos' ? proximosOrdenados : historicoFiltrado;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -224,6 +251,107 @@ export default function AgendamentosScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Filtros dos Próximos */}
+      {activeTab === 'proximos' && (
+        <View
+          style={[
+            styles.filterContainer,
+            { backgroundColor: theme.card, borderBottomColor: theme.border },
+          ]}
+        >
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+            {[
+              { id: 'todos', label: 'Todos', icon: 'list-outline' },
+              { id: 'pendente', label: 'Pendente', icon: 'time-outline' },
+              { id: 'confirmado', label: 'Confirmado', icon: 'checkmark-circle' },
+            ].map((filtro) => (
+              <TouchableOpacity
+                key={filtro.id}
+                style={[
+                  styles.filterButton,
+                  filtroProximos === filtro.id && {
+                    backgroundColor: theme.primary,
+                  },
+                  filtroProximos !== filtro.id && {
+                    backgroundColor: theme.card,
+                    borderColor: theme.border,
+                    borderWidth: 1,
+                  },
+                ]}
+                onPress={() => setFiltroProximos(filtro.id)}
+              >
+                <Ionicons
+                  name={filtro.icon}
+                  size={16}
+                  color={filtroProximos === filtro.id ? '#FFF' : theme.primary}
+                />
+                <Text
+                  style={[
+                    styles.filterButtonText,
+                    {
+                      color: filtroProximos === filtro.id ? '#FFF' : theme.text,
+                    },
+                  ]}
+                >
+                  {filtro.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Filtros do Histórico */}
+      {activeTab === 'historico' && (
+        <View
+          style={[
+            styles.filterContainer,
+            { backgroundColor: theme.card, borderBottomColor: theme.border },
+          ]}
+        >
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+            {[
+              { id: 'todos', label: 'Todos', icon: 'list-outline' },
+              { id: 'concluido', label: 'Concluído', icon: 'checkmark-done' },
+              { id: 'cancelado', label: 'Cancelado', icon: 'close-circle' },
+              { id: 'ausente', label: 'Ausente', icon: 'person-remove' },
+            ].map((filtro) => (
+              <TouchableOpacity
+                key={filtro.id}
+                style={[
+                  styles.filterButton,
+                  filtroHistorico === filtro.id && {
+                    backgroundColor: theme.primary,
+                  },
+                  filtroHistorico !== filtro.id && {
+                    backgroundColor: theme.card,
+                    borderColor: theme.border,
+                    borderWidth: 1,
+                  },
+                ]}
+                onPress={() => setFiltroHistorico(filtro.id)}
+              >
+                <Ionicons
+                  name={filtro.icon}
+                  size={16}
+                  color={filtroHistorico === filtro.id ? '#FFF' : theme.primary}
+                />
+                <Text
+                  style={[
+                    styles.filterButtonText,
+                    {
+                      color: filtroHistorico === filtro.id ? '#FFF' : theme.text,
+                    },
+                  ]}
+                >
+                  {filtro.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       {loading ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={theme.primary} />
@@ -255,7 +383,7 @@ export default function AgendamentosScreen() {
               <Text style={[styles.emptyText, { color: theme.subtext }]}>
                 {activeTab === 'proximos'
                   ? 'Nenhum agendamento próximo.'
-                  : 'Nenhum agendamento no histórico.'}
+                  : 'Nenhum agendamento no filtro selecionado.'}
               </Text>
               <Text style={[styles.emptySubtext, { color: theme.subtext }]}>
                 {activeTab === 'proximos'
@@ -292,6 +420,30 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tabText: { fontSize: 16, fontWeight: '600' },
+  filterContainer: {
+    borderBottomWidth: 1,
+  },
+  filterScroll: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
+  filterButtonText: { fontSize: 13, fontWeight: '600' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContainer: { padding: 15, paddingBottom: 30 },
   card: {
