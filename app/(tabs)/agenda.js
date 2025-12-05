@@ -2,7 +2,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -80,11 +80,13 @@ export default function AgendaScreen() {
   const [barbeiros, setBarbeiros] = useState([]);
   const [barbeiroSelecionado, setBarbeiroSelecionado] = useState(null);
   const [selectedDate, setSelectedDate] = useState(hoje);
+  const [availabilityByDate, setAvailabilityByDate] = useState({});
   const [horariosDisponiveis, setHorariosDisponiveis] = useState([]);
   const [horarioParaConfirmar, setHorarioParaConfirmar] = useState(null);
 
   const [loadingBarbeiros, setLoadingBarbeiros] = useState(true);
   const [loadingHorarios, setLoadingHorarios] = useState(false);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
 
   // ========================================================================
@@ -142,6 +144,47 @@ export default function AgendaScreen() {
     gerarHorarios();
   }, [selectedDate, barbeiroSelecionado, servico, showAlert]);
 
+  const gerarRangeDatas = (inicio, dias = 14) => {
+    const datas = [];
+    const base = new Date(inicio);
+    for (let i = 0; i <= dias; i++) {
+      const dt = new Date(base);
+      dt.setDate(base.getDate() + i);
+      datas.push(dt.toISOString().split('T')[0]);
+    }
+    return datas;
+  };
+
+  const carregarDisponibilidade = useCallback(async () => {
+    if (!servico || !barbeiroSelecionado) return;
+    setLoadingAvailability(true);
+    const datas = gerarRangeDatas(hoje, 14);
+
+    const entradas = await Promise.all(
+      datas.map(async (dataStr) => {
+        const { data, error } = await supabase.rpc('get_horarios_disponiveis', {
+          p_barbeiro_id: barbeiroSelecionado.id,
+          p_data: dataStr,
+          p_duracao_servico_param: servico.duracao,
+        });
+
+        if (error) {
+          console.error('Erro ao carregar disponibilidade:', error.message);
+          return [dataStr, 0];
+        }
+        return [dataStr, data?.length || 0];
+      }),
+    );
+
+    setAvailabilityByDate(Object.fromEntries(entradas));
+    setLoadingAvailability(false);
+  }, [barbeiroSelecionado, hoje, servico]);
+
+  useEffect(() => {
+    setSelectedDate(hoje);
+    carregarDisponibilidade();
+  }, [carregarDisponibilidade, hoje, servico, barbeiroSelecionado]);
+
   // ========================================================================
   // FUNÇÕES DE MANIPULAÇÃO DE EVENTOS
   // ========================================================================
@@ -188,6 +231,16 @@ export default function AgendaScreen() {
     setModalVisible(true);
   };
 
+  const handleDayPress = (day) => {
+    const disponibilidade = availabilityByDate[day.dateString] ?? 0;
+    setSelectedDate(day.dateString);
+    if (disponibilidade === 0) {
+      showAlert('Sem horários', 'Não há horários disponíveis para este dia.', [{ text: 'OK' }]);
+    }
+  };
+
+  const isQuaseCheio = (count) => count > 0 && count <= 2;
+
   const verDetalhesBarbeiro = (barbeiro) => {
     if (!servico) {
       showAlert('Aguarde', 'Carregando informações do serviço...');
@@ -203,6 +256,30 @@ export default function AgendaScreen() {
       },
     });
   };
+  const markedDates = useMemo(() => {
+    const marks = {};
+    Object.entries(availabilityByDate).forEach(([dataStr, count]) => {
+      const isSelected = dataStr === selectedDate;
+      const hasSlots = count > 0;
+      marks[dataStr] = {
+        selected: isSelected,
+        selectedColor: hasSlots ? theme.primary : theme.border,
+        selectedTextColor: hasSlots ? theme.background : theme.text,
+        marked: true,
+        dotColor: hasSlots ? theme.success || theme.primary : theme.subtext,
+      };
+    });
+
+    if (!marks[selectedDate]) {
+      marks[selectedDate] = {
+        selected: true,
+        selectedColor: theme.primary,
+        selectedTextColor: theme.background,
+      };
+    }
+
+    return marks;
+  }, [availabilityByDate, selectedDate, theme]);
 
   // (O resto do seu código permanece exatamente o mesmo)
   // ...
@@ -228,6 +305,8 @@ export default function AgendaScreen() {
       </View>
     );
   }
+
+  const disponibilidadeSelecionada = availabilityByDate[selectedDate];
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -341,11 +420,42 @@ export default function AgendaScreen() {
         {barbeiroSelecionado && (
           <View style={styles.sectionContainer}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>2. Escolha a Data</Text>
+            <View style={styles.availabilityRow}>
+              {loadingAvailability ? (
+                <View style={styles.badgeInfo}>
+                  <ActivityIndicator size="small" color={theme.primary} />
+                  <Text style={[styles.badgeText, { color: theme.subtext }]}>Carregando...</Text>
+                </View>
+              ) : (
+                <View style={styles.badgeInfo}>
+                  <View style={[styles.dot, { backgroundColor: theme.success || theme.primary }]} />
+                  <Text style={[styles.badgeText, { color: theme.text }]}>
+                    {disponibilidadeSelecionada > 0
+                      ? `${disponibilidadeSelecionada} horário(s) disponível(is)`
+                      : 'Sem horários neste dia'}
+                  </Text>
+                  {isQuaseCheio(disponibilidadeSelecionada || 0) && (
+                    <View style={[styles.pill, { backgroundColor: theme.warning || '#f5a524' }]}>
+                      <Text style={[styles.pillText, { color: theme.background }]}>
+                        Quase cheio
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+              <View style={styles.legendRow}>
+                <View style={[styles.dot, { backgroundColor: theme.success || theme.primary }]} />
+                <Text style={[styles.legendText, { color: theme.subtext }]}>Disponível</Text>
+                <View style={[styles.dot, { backgroundColor: theme.subtext }]} />
+                <Text style={[styles.legendText, { color: theme.subtext }]}>Indisponível</Text>
+              </View>
+            </View>
             <Calendar
               style={[styles.calendario, { backgroundColor: theme.card }]}
-              onDayPress={(day) => setSelectedDate(day.dateString)}
-              markedDates={{ [selectedDate]: { selected: true, selectedColor: theme.primary } }}
+              onDayPress={handleDayPress}
+              markedDates={markedDates}
               minDate={hoje}
+              markingType="dot"
               theme={{
                 backgroundColor: theme.card,
                 calendarBackground: theme.card,
@@ -371,7 +481,14 @@ export default function AgendaScreen() {
               3. Escolha o Horário
             </Text>
             {loadingHorarios ? (
-              <ActivityIndicator color={theme.primary} />
+              <View style={styles.horariosGrid}>
+                {Array.from({ length: 6 }).map((_, idx) => (
+                  <View
+                    key={`skeleton-${idx}`}
+                    style={[styles.horarioButton, styles.horarioSkeleton]}
+                  />
+                ))}
+              </View>
             ) : (
               <View style={styles.horariosGrid}>
                 {horariosDisponiveis.length > 0 ? (
@@ -385,7 +502,7 @@ export default function AgendaScreen() {
                       onPress={() => abrirModalConfirmacao(horario.horario_disponivel)}
                     >
                       <Text style={[styles.horarioText, { color: theme.text }]}>
-                        {horario.horario_disponivel}
+                        {`${horario.horario_disponivel} • ${servico?.duracao || ''}min`}
                       </Text>
                     </TouchableOpacity>
                   ))
@@ -430,6 +547,19 @@ const styles = StyleSheet.create({
 
   sectionContainer: { marginBottom: 10, marginTop: 20 },
   sectionTitle: { fontSize: 20, fontWeight: 'bold', marginLeft: 15, marginBottom: 15 },
+  availabilityRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: 15,
+    marginBottom: 10,
+    gap: 10,
+  },
+  badgeInfo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  badgeText: { fontSize: 14, fontWeight: '600' },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendText: { fontSize: 12 },
+  dot: { width: 10, height: 10, borderRadius: 5 },
 
   barbeiroCard: {
     borderRadius: 15,
@@ -477,7 +607,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
   },
+  horarioSkeleton: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
   horarioText: { fontSize: 16, fontWeight: '600' },
+  pill: {
+    marginLeft: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  pillText: { fontSize: 12, fontWeight: '700' },
 
   modalContainer: {
     flex: 1,
