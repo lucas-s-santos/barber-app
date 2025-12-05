@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useAppTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../supabaseClient';
 
 // Componente para renderizar as estrelas
@@ -35,6 +36,7 @@ const Stars = ({ rating, size = 20 }) => {
 export default function DetalhesBarbeiroScreen() {
   const router = useRouter();
   const { barbeiroId, servicoId, servicoNome, servicoDuracao } = useLocalSearchParams();
+  const { theme } = useAppTheme();
 
   const [loading, setLoading] = useState(true);
   const [detalhes, setDetalhes] = useState(null);
@@ -84,8 +86,8 @@ export default function DetalhesBarbeiroScreen() {
   // Só tenta renderizar se não estiver carregando E se 'detalhes' e 'detalhes.perfil' existirem.
   if (loading || !detalhes || !detalhes.perfil) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#E50914" />
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
@@ -94,27 +96,32 @@ export default function DetalhesBarbeiroScreen() {
   const { perfil, estatisticas, avaliacoes, portfolio } = detalhes;
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.header, { backgroundColor: theme.card }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={28} color="white" />
+          <Ionicons name="arrow-back" size={28} color={theme.text} />
         </TouchableOpacity>
         {perfil.foto_base64 ? (
           <Image
             source={{ uri: `data:image/jpeg;base64,${perfil.foto_base64}` }}
-            style={styles.avatar}
+            style={[styles.avatar, { borderColor: theme.primary }]}
           />
         ) : (
-          <View style={styles.avatarPlaceholder}>
-            <Ionicons name="person" size={60} color="#555" />
+          <View
+            style={[
+              styles.avatarPlaceholder,
+              { backgroundColor: theme.card, borderColor: theme.border },
+            ]}
+          >
+            <Ionicons name="person" size={60} color={theme.subtext} />
           </View>
         )}
-        <Text style={styles.nome}>{perfil.nome_completo}</Text>
+        <Text style={[styles.nome, { color: theme.text }]}>{perfil.nome_completo}</Text>
 
         {estatisticas && (
           <View style={styles.statsContainer}>
             <Stars rating={estatisticas.media_nota} />
-            <Text style={styles.statsText}>
+            <Text style={[styles.statsText, { color: theme.subtext }]}>
               {Number(estatisticas.media_nota).toFixed(1)} de 5 ({estatisticas.total_avaliacoes}{' '}
               avaliações)
             </Text>
@@ -122,14 +129,17 @@ export default function DetalhesBarbeiroScreen() {
         )}
       </View>
 
-      <TouchableOpacity style={styles.agendarButton} onPress={handleSelectBarbeiro}>
-        <Text style={styles.agendarButtonText}>
+      <TouchableOpacity
+        style={[styles.agendarButton, { backgroundColor: theme.primary }]}
+        onPress={handleSelectBarbeiro}
+      >
+        <Text style={[styles.agendarButtonText, { color: theme.background }]}>
           Agendar com {perfil.nome_completo.split(' ')[0]}
         </Text>
       </TouchableOpacity>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Portfólio</Text>
+      <View style={[styles.section, { borderTopColor: theme.border }]}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Portfólio</Text>
         {portfolio && portfolio.length > 0 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {portfolio.map((item) => (
@@ -141,26 +151,34 @@ export default function DetalhesBarbeiroScreen() {
             ))}
           </ScrollView>
         ) : (
-          <Text style={styles.placeholderText}>Nenhuma foto no portfólio ainda.</Text>
+          <Text style={[styles.placeholderText, { color: theme.subtext }]}>
+            Nenhuma foto no portfólio ainda.
+          </Text>
         )}
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Últimas Avaliações</Text>
+      <View style={[styles.section, { borderTopColor: theme.border }]}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Últimas Avaliações</Text>
         {avaliacoes && avaliacoes.length > 0 ? (
           avaliacoes.map((item, index) => (
-            <View key={index} style={styles.avaliacaoCard}>
+            <View key={index} style={[styles.avaliacaoCard, { backgroundColor: theme.card }]}>
               <View style={styles.avaliacaoHeader}>
-                <Text style={styles.avaliacaoNome}>{item.nome_cliente}</Text>
+                <Text style={[styles.avaliacaoNome, { color: theme.text }]}>
+                  {item.nome_cliente}
+                </Text>
                 <Stars rating={item.nota} size={16} />
               </View>
               {item.comentario && (
-                <Text style={styles.avaliacaoComentario}>{`\"${item.comentario}\"`}</Text>
+                <Text style={[styles.avaliacaoComentario, { color: theme.subtext }]}>
+                  {`"${item.comentario}"`}
+                </Text>
               )}
             </View>
           ))
         ) : (
-          <Text style={styles.placeholderText}>Nenhuma avaliação recebida ainda.</Text>
+          <Text style={[styles.placeholderText, { color: theme.subtext }]}>
+            Nenhuma avaliação recebida ainda.
+          </Text>
         )}
       </View>
     </ScrollView>
@@ -172,52 +190,46 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#121212',
   },
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1 },
   header: {
     alignItems: 'center',
     paddingTop: 60,
     paddingBottom: 20,
-    backgroundColor: '#1E1E1E',
   },
   backButton: { position: 'absolute', top: 60, left: 20, zIndex: 1 },
-  avatar: { width: 120, height: 120, borderRadius: 60, borderWidth: 3, borderColor: '#34D399' },
+  avatar: { width: 120, height: 120, borderRadius: 60, borderWidth: 3 },
   avatarPlaceholder: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#2C2C2C',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
   },
-  nome: { color: 'white', fontSize: 26, fontWeight: 'bold', marginTop: 15 },
+  nome: { fontSize: 26, fontWeight: 'bold', marginTop: 15 },
   statsContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
-  statsText: { color: 'gray', fontSize: 14, marginLeft: 10 },
+  statsText: { fontSize: 14, marginLeft: 10 },
   agendarButton: {
-    backgroundColor: '#E50914',
     margin: 20,
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
   },
   agendarButtonText: {
-    color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
   },
   section: {
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: '#1E1E1E',
   },
   sectionTitle: {
-    color: 'white',
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 15,
   },
-  placeholderText: { color: 'gray', fontStyle: 'italic' },
+  placeholderText: { fontStyle: 'italic' },
   portfolioImage: {
     width: 150,
     height: 150,
@@ -225,7 +237,6 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   avaliacaoCard: {
-    backgroundColor: '#1E1E1E',
     borderRadius: 10,
     padding: 15,
     marginBottom: 10,
@@ -237,12 +248,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   avaliacaoNome: {
-    color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
   },
   avaliacaoComentario: {
-    color: '#A0A0A0',
     fontSize: 14,
     fontStyle: 'italic',
   },

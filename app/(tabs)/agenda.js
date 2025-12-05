@@ -178,7 +178,7 @@ export default function AgendaScreen() {
       showAlert(
         'Solicitação Enviada!',
         `Seu pedido de horário para ${servico.nome} com ${barbeiroSelecionado.nome_completo} foi enviado. Aguarde a confirmação do barbeiro.`,
-        [{ text: 'OK', onPress: () => router.push('/(tabs)/meus-agendamentos') }],
+        [{ text: 'OK', onPress: () => router.push('/(tabs)/agendamentos') }],
       );
     }
   };

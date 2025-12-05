@@ -5,7 +5,6 @@ import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -14,11 +13,13 @@ import {
   View,
 } from 'react-native';
 
+import { useAlert } from '../../contexts/AlertContext';
 import { useAppTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../supabaseClient';
 
 export default function PerfilScreen() {
   const router = useRouter();
+  const showAlert = useAlert();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const { theme, themeMode, toggleTheme } = useAppTheme();
@@ -39,11 +40,11 @@ export default function PerfilScreen() {
       if (error && status !== 406) throw error;
       setProfile(data);
     } catch (_error) {
-      Alert.alert('Erro', 'Não foi possível carregar o perfil.');
+      showAlert('Erro', 'Não foi possível carregar o perfil.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showAlert]);
 
   useFocusEffect(
     useCallback(() => {
@@ -54,7 +55,7 @@ export default function PerfilScreen() {
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
-    if (error) Alert.alert('Erro', 'Não foi possível fazer logout.');
+    if (error) showAlert('Erro', 'Não foi possível fazer logout.');
     else router.replace('/(auth)/login');
   };
 
@@ -75,9 +76,12 @@ export default function PerfilScreen() {
           headerShown: true,
           headerTitle: 'Meu Perfil',
           headerTransparent: true,
+          headerTitleStyle: { color: theme.text },
+          headerTintColor: theme.text,
+          headerStyle: { backgroundColor: theme.background },
           headerRight: () => (
             <TouchableOpacity onPress={handleLogout} style={{ marginRight: 15 }}>
-              <Ionicons name="log-out-outline" size={28} color={theme.secondary} />
+              <Ionicons name="log-out-outline" size={28} color={theme.text} />
             </TouchableOpacity>
           ),
           headerLeft: () => null,
@@ -121,6 +125,7 @@ export default function PerfilScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* CONTEÚDO */}
         <View style={styles.menu}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Conta</Text>
           <MenuItem
@@ -151,39 +156,17 @@ export default function PerfilScreen() {
           <MenuItem
             icon="notifications-outline"
             text="Notificações"
-            onPress={() =>
-              Alert.alert('Em breve', 'Configurações de notificações em desenvolvimento.')
-            }
+            onPress={() => router.push('/(tabs)/notificacoes')}
           />
           <MenuItem
             icon="help-circle-outline"
             text="Ajuda e Suporte"
-            onPress={() =>
-              Alert.alert(
-                'Ajuda e Suporte',
-                'Entre em contato conosco:\n\n📧 Email: suporte@barbeapp.com\n📱 WhatsApp: (11) 98765-4321',
-              )
-            }
-          />
-          <MenuItem
-            icon="information-circle-outline"
-            text="Sobre o App"
-            onPress={() =>
-              Alert.alert(
-                'Barber App',
-                'Versão 1.0.0\n\nSistema de agendamento para barbearias.\n\n© 2025 Barber App. Todos os direitos reservados.',
-              )
-            }
+            onPress={() => router.push('/(tabs)/ajuda')}
           />
           <MenuItem
             icon="shield-checkmark-outline"
             text="Política de Privacidade"
-            onPress={() =>
-              Alert.alert(
-                'Política de Privacidade',
-                'Seus dados são protegidos e utilizados apenas para melhorar sua experiência no aplicativo.',
-              )
-            }
+            onPress={() => router.push('/(tabs)/politica')}
           />
         </View>
       </ScrollView>
@@ -208,7 +191,7 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', marginBottom: 30, paddingHorizontal: 20 },
   avatar: { width: 120, height: 120, borderRadius: 60, borderWidth: 4, marginBottom: 15 },
   nome: { fontSize: 24, fontWeight: 'bold' },
-  email: { fontSize: 16 },
+  email: { fontSize: 16, marginTop: 5 },
   themeSwitcher: {
     flexDirection: 'row',
     justifyContent: 'center',
