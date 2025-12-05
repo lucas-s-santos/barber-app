@@ -79,12 +79,56 @@ export function onAuthStateChanged(callback: (event: string, session: Session | 
   const { data } = supabase.auth.onAuthStateChange((event, session) => {
     callback(event, session ?? null);
   });
-  // return unsubscribe function
-  // @ts-ignore - subscription typing may vary by supabase version
   return () => data?.subscription?.unsubscribe && data.subscription.unsubscribe();
 }
 
-// 5. Gerencia a sessão quando o app fica ativo ou inativo
+export async function isBarbeariaAdmin(userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('barbearias')
+      .select('id')
+      .eq('admin_id', userId)
+      .single();
+
+    if (error || !data) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function getBarbeariaByAdmin(userId: string) {
+  const { data, error } = await supabase
+    .from('barbearias')
+    .select('*')
+    .eq('admin_id', userId)
+    .single();
+
+  return { data: data ?? null, error: error ?? null };
+}
+
+export async function getAllBarbearias() {
+  const { data, error } = await supabase
+    .from('barbearias')
+    .select('*')
+    .eq('ativo', true)
+    .order('nome_barbearia');
+
+  return { data: data ?? [], error: error ?? null };
+}
+
+export async function getBarbeariaById(barbeariaId: string) {
+  const { data, error } = await supabase
+    .from('barbearias')
+    .select('*')
+    .eq('id', barbeariaId)
+    .single();
+
+  return { data: data ?? null, error: error ?? null };
+}
+
 AppState.addEventListener('change', (state) => {
   if (state === 'active') {
     supabase.auth.startAutoRefresh();
