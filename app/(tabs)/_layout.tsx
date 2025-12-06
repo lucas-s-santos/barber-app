@@ -135,22 +135,22 @@ export default function TabsLayout() {
 
   // Layout padrão para CLIENTE
   return (
-    <Tabs screenOptions={screenOptions} initialRouteName="servicos">
+    <Tabs screenOptions={screenOptions} initialRouteName="barbearias-mapa">
       <Tabs.Screen
-        name="servicos"
+        name="barbearias-mapa"
         options={{
-          title: 'Serviços',
+          title: 'Mapa',
           tabBarIcon: ({ color, size }) => (
-            <TabBarIcon name="cut-outline" color={color} size={size} />
+            <TabBarIcon name="map-outline" color={color} size={size} />
           ),
         }}
       />
       <Tabs.Screen
-        name="agenda"
+        name="barbearias-lista"
         options={{
-          title: 'Agendar',
+          title: 'Barbearias',
           tabBarIcon: ({ color, size }) => (
-            <TabBarIcon name="calendar-outline" color={color} size={size} />
+            <TabBarIcon name="storefront-outline" color={color} size={size} />
           ),
         }}
       />
@@ -159,7 +159,7 @@ export default function TabsLayout() {
         options={{
           title: 'Agendamentos',
           tabBarIcon: ({ color, size }) => (
-            <TabBarIcon name="list-outline" color={color} size={size} />
+            <TabBarIcon name="calendar-outline" color={color} size={size} />
           ),
         }}
       />
@@ -174,7 +174,11 @@ export default function TabsLayout() {
       />
 
       {/* Telas ocultas */}
+      <Tabs.Screen name="barbearia-detalhes" options={{ href: null }} />
+      <Tabs.Screen name="servicos" options={{ href: null }} />
+      <Tabs.Screen name="agenda" options={{ href: null }} />
       <Tabs.Screen name="painel" options={{ href: null }} />
+      <Tabs.Screen name="painel-barbearia" options={{ href: null }} />
       <Tabs.Screen name="dashboard" options={{ href: null }} />
       <Tabs.Screen name="meus-agendamentos" options={{ href: null }} />
       <Tabs.Screen name="historico-agendamentos" options={{ href: null }} />

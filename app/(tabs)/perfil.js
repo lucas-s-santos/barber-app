@@ -75,7 +75,6 @@ export default function PerfilScreen() {
         options={{
           headerShown: true,
           headerTitle: 'Meu Perfil',
-          headerTransparent: true,
           headerTitleStyle: { color: theme.text },
           headerTintColor: theme.text,
           headerStyle: { backgroundColor: theme.background },
@@ -88,7 +87,7 @@ export default function PerfilScreen() {
         }}
       />
 
-      <ScrollView contentContainerStyle={{ paddingTop: 120, paddingBottom: 40 }}>
+      <ScrollView contentContainerStyle={{ paddingTop: 20, paddingBottom: 30 }}>
         <View style={styles.header}>
           <Image
             source={
