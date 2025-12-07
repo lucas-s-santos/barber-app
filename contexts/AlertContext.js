@@ -10,7 +10,10 @@ export function AlertProvider({ children }) {
 
   // Função para mostrar o alerta. Ela recebe título, mensagem e botões.
   const showAlert = useCallback((title, message, buttons) => {
-    setAlert({ title, message, buttons });
+    // Se nenhum botão for fornecido, adiciona um botão "OK" padrão
+    const defaultButtons =
+      buttons && buttons.length > 0 ? buttons : [{ text: 'OK', onPress: () => closeAlert() }];
+    setAlert({ title, message, buttons: defaultButtons });
   }, []);
 
   // Função para fechar o alerta
@@ -37,6 +40,13 @@ export function AlertProvider({ children }) {
         >
           <View style={styles.modalContainer}>
             <View style={styles.modalView}>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={closeAlert}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
               <Text style={styles.modalTitle}>{alert.title}</Text>
               <Text style={styles.modalMessage}>{alert.message}</Text>
               <View style={styles.buttonContainer}>
@@ -104,6 +114,19 @@ const styles = StyleSheet.create({
     elevation: 5,
     borderWidth: 1,
     borderColor: '#444',
+    position: 'relative',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 1,
+    padding: 5,
+  },
+  closeButtonText: {
+    color: '#AAA',
+    fontSize: 24,
+    fontWeight: 'bold',
   },
   modalTitle: {
     fontSize: 20,
