@@ -29,7 +29,7 @@ export default function LoginScreen() {
 
   async function signInWithEmail() {
     if (!email || !password) {
-      showAlert('Atenção', 'Por favor, preencha seu email e senha.');
+      showAlert('Atenção', 'Por favor, preencha seu email e senha.', [{ text: 'OK' }]);
       return;
     }
     setLoading(true);
