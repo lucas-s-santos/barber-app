@@ -1,7 +1,7 @@
 // Arquivo: app/(tabs)/servicos.js (Com o novo design de cards)
 
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { useAlert } from '../../contexts/AlertContext';
+import { useBarbershop } from '../../contexts/BarbershopContext';
 import { useAppTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../supabaseClient';
 
@@ -20,6 +21,8 @@ export default function ServicosScreen() {
   const router = useRouter();
   const showAlert = useAlert();
   const { theme } = useAppTheme(); // <<< 1. Pegamos as cores do tema
+  const { selectedBarbershop } = useBarbershop();
+  const params = useLocalSearchParams();
 
   const [servicos, setServicos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,11 +31,23 @@ export default function ServicosScreen() {
   useEffect(() => {
     async function fetchServicos() {
       setLoading(true);
-      const { data, error } = await supabase
+      if (!selectedBarbershop) {
+        router.replace('/selecionar-barbearia');
+        return;
+      }
+
+      let query = supabase
         .from('servicos')
         .select('*')
         .eq('ativo', true)
+        .eq('barbearia_id', selectedBarbershop.id)
         .order('preco', { ascending: true });
+
+      if (params?.barbeiroId) {
+        query = query.eq('barbeiro_id', params.barbeiroId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         showAlert('Erro', 'Não foi possível carregar os serviços.');
@@ -41,8 +56,11 @@ export default function ServicosScreen() {
       }
       setLoading(false);
     }
-    fetchServicos();
-  }, [showAlert]);
+
+    if (selectedBarbershop) {
+      fetchServicos();
+    }
+  }, [showAlert, selectedBarbershop, router, params?.barbeiroId]);
 
   const handleProceedToAgenda = () => {
     if (!servicoSelecionado) {

@@ -29,16 +29,18 @@ export default function CadastroScreen() {
   const [password, setPassword] = useState('');
   const [nomeCompleto, setNomeCompleto] = useState('');
   const [telefone, setTelefone] = useState('');
+  const [cpf, setCpf] = useState('');
   const [loading, setLoading] = useState(false);
 
   // <<< 2. O estado agora guarda a data como texto (ex: "23/12/2005") >>>
   const [dataNascimento, setDataNascimento] = useState('');
 
   async function handleSignUp() {
-    if (!nomeCompleto || !email || !password || !dataNascimento) {
+    if (!nomeCompleto || !email || !password || !dataNascimento || !cpf) {
       showAlert(
         'Campos Obrigatórios',
-        'Por favor, preencha nome, data de nascimento, email e senha.',
+        'Por favor, preencha nome, CPF, data de nascimento, email e senha.',
+        [{ text: 'OK' }],
       );
       return;
     }
@@ -74,19 +76,25 @@ export default function CadastroScreen() {
       return;
     }
 
-    const { error: profileError } = await supabase.from('perfis').insert({
-      id: authData.user.id,
-      email: email,
-      nome_completo: nomeCompleto,
-      telefone: telefone,
-      data_nascimento: dataFormatadaParaSupabase, // Envia a data no formato correto
-      papel: 'cliente',
-    });
+    const { error: profileError } = await supabase.from('perfis').insert(
+      {
+        id: authData.user.id,
+        email: email,
+        nome_completo: nomeCompleto,
+        telefone: telefone || null,
+        cpf: cpf,
+        data_nascimento: dataFormatadaParaSupabase,
+        papel: 'cliente',
+      },
+      { returning: 'minimal' },
+    );
 
     if (profileError) {
+      console.error('Erro ao salvar perfil:', profileError);
       showAlert(
         'Erro ao Salvar Perfil',
         `Seu usuário foi criado, mas houve um erro ao salvar seus dados: ${profileError.message}`,
+        [{ text: 'OK' }],
       );
       setLoading(false);
       return;
@@ -143,6 +151,19 @@ export default function CadastroScreen() {
             keyboardType="numeric"
           />
           {/* ---------------------------------------------------- */}
+
+          <MaskedTextInput
+            mask="999.999.999-99"
+            onChangeText={(text) => setCpf(text)}
+            value={cpf}
+            style={[
+              styles.input,
+              { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
+            ]}
+            placeholder="CPF"
+            placeholderTextColor={theme.subtext}
+            keyboardType="numeric"
+          />
 
           <MaskedTextInput
             style={[

@@ -17,6 +17,7 @@ import { Calendar, LocaleConfig } from 'react-native-calendars';
 
 // Hooks personalizados
 import { useAlert } from '../../contexts/AlertContext';
+import { useBarbershop } from '../../contexts/BarbershopContext';
 import { useAppTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../supabaseClient';
 
@@ -72,6 +73,7 @@ export default function AgendaScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { theme } = useAppTheme();
+  const { selectedBarbershop } = useBarbershop();
   const showAlert = useAlert();
   const hoje = new Date().toISOString().split('T')[0];
 
@@ -93,6 +95,10 @@ export default function AgendaScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      if (!selectedBarbershop) {
+        router.replace('/selecionar-barbearia');
+        return;
+      }
       if (params.servicoId && params.servicoNome && params.servicoDuracao) {
         setServico({
           id: params.servicoId,
@@ -100,16 +106,18 @@ export default function AgendaScreen() {
           duracao: parseInt(params.servicoDuracao, 10),
         });
       }
-    }, [params]),
+    }, [params, router, selectedBarbershop]),
   );
 
   useEffect(() => {
     const fetchBarbeiros = async () => {
+      if (!selectedBarbershop) return;
       setLoadingBarbeiros(true);
       const { data, error } = await supabase
-        .from('perfis')
-        .select('id, nome_completo')
-        .eq('papel', 'barbeiro');
+        .from('barbeiros')
+        .select('id, nome, nome_completo, barbearia_id, ativo')
+        .eq('barbearia_id', selectedBarbershop.id)
+        .eq('ativo', true);
       if (error) showAlert('Erro', 'Não foi possível carregar a lista de barbeiros.');
       else {
         setBarbeiros(data || []);
@@ -120,7 +128,7 @@ export default function AgendaScreen() {
       setLoadingBarbeiros(false);
     };
     fetchBarbeiros();
-  }, [showAlert]);
+  }, [showAlert, selectedBarbershop]);
 
   useEffect(() => {
     const gerarHorarios = async () => {
@@ -155,6 +163,11 @@ export default function AgendaScreen() {
       showAlert('Erro', 'Você precisa estar logado para agendar.');
       return;
     }
+    if (!selectedBarbershop) {
+      showAlert('Erro', 'Selecione uma barbearia antes de agendar.');
+      router.replace('/selecionar-barbearia');
+      return;
+    }
     const dataHoraAgendamento = `${selectedDate}T${horarioParaConfirmar}`;
 
     // =================================================================
@@ -164,6 +177,7 @@ export default function AgendaScreen() {
       cliente_id: user.id,
       barbeiro_id: barbeiroSelecionado.id,
       servico_id: servico.id,
+      barbearia_id: selectedBarbershop.id,
       data_agendamento: dataHoraAgendamento,
       status: 'pendente', // Forçando o status correto
     };
