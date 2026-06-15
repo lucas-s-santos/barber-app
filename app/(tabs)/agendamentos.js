@@ -42,7 +42,7 @@ export default function AgendamentosScreen() {
     const { data: proximosData, error: proximosError } = await supabase
       .from('agendamentos')
       .select(
-        `id, data_agendamento, status, servico:servico_id(nome), barbeiro:barbeiro_id(nome_completo)`,
+        `id, data_agendamento, status, servico:servico_id(nome), barbeiro:barbeiro_id(perfis!perfil_id(nome_completo))`,
       )
       .eq('cliente_id', user.id)
       .in('status', ['pendente', 'confirmado'])
@@ -52,10 +52,10 @@ export default function AgendamentosScreen() {
     const { data: historicoData, error: historicoError } = await supabase
       .from('agendamentos')
       .select(
-        `id, data_agendamento, status, servico:servico_id(nome), barbeiro:barbeiro_id(nome_completo)`,
+        `id, data_agendamento, status, servico:servico_id(nome), barbeiro:barbeiro_id(perfis!perfil_id(nome_completo))`,
       )
       .eq('cliente_id', user.id)
-      .in('status', ['concluido', 'cancelado', 'ausente'])
+      .in('status', ['concluido', 'cancelado'])
       .order('data_agendamento', { ascending: false });
 
     if (proximosError || historicoError) {
@@ -153,7 +153,7 @@ export default function AgendamentosScreen() {
           <View style={styles.infoRow}>
             <Ionicons name="person-outline" size={18} color={theme.primary} />
             <Text style={[styles.infoText, { color: theme.text }]}>
-              {item.barbeiro?.nome_completo}
+              {item.barbeiro?.perfis?.nome_completo}
             </Text>
           </View>
         </View>

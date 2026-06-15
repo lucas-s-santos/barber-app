@@ -2,17 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
 import { useAlert } from '../../contexts/AlertContext';
 import { useAppTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../supabaseClient';
@@ -28,8 +28,6 @@ export default function CadastroBarbeariaScreen() {
   const [telefone, setTelefone] = useState('');
   const [nomeBarbearia, setNomeBarbearia] = useState('');
   const [endereco, setEndereco] = useState('');
-  const [latitude, setLatitude] = useState('');
-  const [longitude, setLongitude] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleSignUp() {
@@ -37,12 +35,21 @@ export default function CadastroBarbeariaScreen() {
       showAlert('Campos Obrigatórios', 'Por favor, preencha todos os campos obrigatórios.');
       return;
     }
-
     setLoading(true);
-
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: email,
-      password: password,
+    // O gatilho handle_new_user cria o perfil (dono) e a barbearia via options.data.
+    // A localização (mapa) pode ser ajustada depois em "Gerenciar Barbearia".
+    const { error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          nome_completo: nomeCompleto,
+          telefone,
+          papel: 'dono_barbearia',
+          nome_barbearia: nomeBarbearia,
+          endereco,
+        },
+      },
     });
 
     if (authError) {
@@ -51,61 +58,9 @@ export default function CadastroBarbeariaScreen() {
       return;
     }
 
-    if (!authData.user) {
-      showAlert('Erro no Cadastro', 'Não foi possível criar o usuário. Tente novamente.');
-      setLoading(false);
-      return;
-    }
-
-    const { error: profileError } = await supabase.from('perfis').insert({
-      id: authData.user.id,
-      email: email,
-      nome_completo: nomeCompleto,
-      telefone: telefone,
-      papel: 'admin',
-    });
-
-    if (profileError) {
-      showAlert(
-        'Erro ao Salvar Perfil',
-        `Houve um erro ao salvar seus dados: ${profileError.message}`,
-      );
-      setLoading(false);
-      return;
-    }
-
-    const barbeariaData: any = {
-      nome_barbearia: nomeBarbearia,
-      endereco: endereco,
-      admin_id: authData.user.id,
-      ativo: true,
-    };
-
-    if (latitude && longitude) {
-      const lat = parseFloat(latitude);
-      const lng = parseFloat(longitude);
-      if (!isNaN(lat) && !isNaN(lng)) {
-        barbeariaData.latitude = lat;
-        barbeariaData.longitude = lng;
-      }
-    }
-
-    const { error: barbeariaError } = await supabase.from('barbearias').insert(barbeariaData);
-
-    if (barbeariaError) {
-      showAlert(
-        'Erro ao Cadastrar Barbearia',
-        `Houve um erro ao cadastrar a barbearia: ${barbeariaError.message}`,
-      );
-      setLoading(false);
-      return;
-    }
-
-    showAlert(
-      'Cadastro Realizado!',
-      'Sua barbearia foi cadastrada com sucesso. Verifique seu e-mail para confirmar e depois faça o login.',
-      [{ text: 'OK', onPress: () => router.replace('/(auth)/login-barbearia') }],
-    );
+    showAlert('Cadastro Realizado!', 'Sua barbearia foi cadastrada. Faça login para continuar.', [
+      { text: 'OK', onPress: () => router.replace('/(auth)/login-barbearia') },
+    ]);
     setLoading(false);
   }
 
@@ -116,10 +71,13 @@ export default function CadastroBarbeariaScreen() {
     >
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={28} color={theme.primary} />
+          <Ionicons name="arrow-back" size={26} color={theme.text} />
         </TouchableOpacity>
 
         <View style={styles.header}>
+          <View style={[styles.badge, { backgroundColor: theme.goldSoft }]}>
+            <Ionicons name="storefront" size={30} color={theme.gold} />
+          </View>
           <Text style={[styles.title, { color: theme.text }]}>Cadastre sua Barbearia</Text>
           <Text style={[styles.subtitle, { color: theme.subtext }]}>
             Preencha as informações abaixo
@@ -127,122 +85,66 @@ export default function CadastroBarbeariaScreen() {
         </View>
 
         <View style={styles.form}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Dados Pessoais</Text>
-
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
-            ]}
-            placeholder="Nome Completo *"
-            placeholderTextColor={theme.subtext}
+          <Text style={[styles.sectionTitle, { color: theme.gold }]}>SEUS DADOS</Text>
+          <Input
+            label="Nome completo *"
+            icon="person-outline"
+            placeholder="Seu nome"
             value={nomeCompleto}
             onChangeText={setNomeCompleto}
           />
-
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
-            ]}
-            placeholder="Telefone"
-            placeholderTextColor={theme.subtext}
+          <Input
+            label="Telefone"
+            icon="call-outline"
+            placeholder="(00) 00000-0000"
             value={telefone}
             onChangeText={setTelefone}
             keyboardType="phone-pad"
           />
-
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
-            ]}
-            placeholder="Email *"
-            placeholderTextColor={theme.subtext}
+          <Input
+            label="Email *"
+            icon="mail-outline"
+            placeholder="seu@email.com"
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
+            autoCorrect={false}
             keyboardType="email-address"
           />
-
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
-            ]}
-            placeholder="Senha *"
-            placeholderTextColor={theme.subtext}
+          <Input
+            label="Senha *"
+            icon="lock-closed-outline"
+            placeholder="Mínimo 6 caracteres"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
           />
 
-          <Text style={[styles.sectionTitle, { color: theme.text, marginTop: 20 }]}>
-            Dados da Barbearia
+          <Text style={[styles.sectionTitle, { color: theme.gold, marginTop: 8 }]}>
+            SUA BARBEARIA
           </Text>
-
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
-            ]}
-            placeholder="Nome da Barbearia *"
-            placeholderTextColor={theme.subtext}
+          <Input
+            label="Nome da barbearia *"
+            icon="cut-outline"
+            placeholder="Nome da sua barbearia"
             value={nomeBarbearia}
             onChangeText={setNomeBarbearia}
           />
-
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
-            ]}
-            placeholder="Endereço Completo *"
-            placeholderTextColor={theme.subtext}
+          <Input
+            label="Endereço *"
+            icon="location-outline"
+            placeholder="Rua, número - bairro"
             value={endereco}
             onChangeText={setEndereco}
-            multiline
           />
 
-          <Text style={[styles.sectionTitle, { color: theme.text, marginTop: 20 }]}>
-            Localização (Opcional)
-          </Text>
-
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
-            ]}
-            placeholder="Latitude (ex: -23.5505)"
-            placeholderTextColor={theme.subtext}
-            value={latitude}
-            onChangeText={setLatitude}
-            keyboardType="numeric"
-          />
-
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
-            ]}
-            placeholder="Longitude (ex: -46.6333)"
-            placeholderTextColor={theme.subtext}
-            value={longitude}
-            onChangeText={setLongitude}
-            keyboardType="numeric"
-          />
-
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: theme.primary }]}
+          <Button
+            title="Cadastrar"
+            size="lg"
+            loading={loading}
             onPress={handleSignUp}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={theme.background} />
-            ) : (
-              <Text style={[styles.buttonText, { color: theme.background }]}>Cadastrar</Text>
-            )}
-          </TouchableOpacity>
+            style={styles.submit}
+          />
         </View>
 
         <TouchableOpacity
@@ -260,59 +162,23 @@ export default function CadastroBarbeariaScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-    paddingTop: 50,
-  },
-  backButton: {
-    marginBottom: 20,
-    width: 40,
-  },
-  header: {
-    marginBottom: 30,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-  },
-  subtitle: {
-    fontSize: 16,
-    marginTop: 8,
-  },
-  form: {
-    width: '100%',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 15,
-  },
-  input: {
-    padding: 18,
-    borderRadius: 12,
-    marginBottom: 15,
-    fontSize: 16,
-    borderWidth: 1,
-  },
-  button: {
-    padding: 18,
-    borderRadius: 12,
+  container: { flex: 1 },
+  scrollContent: { padding: 24, paddingTop: 90 },
+  backButton: { position: 'absolute', top: 50, left: 18, padding: 6, zIndex: 10 },
+  header: { alignItems: 'center', marginBottom: 24 },
+  badge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
-    marginTop: 10,
+    justifyContent: 'center',
+    marginBottom: 14,
   },
-  buttonText: {
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  linkButton: {
-    marginTop: 30,
-    marginBottom: 40,
-    alignItems: 'center',
-  },
-  linkText: {
-    fontSize: 16,
-  },
+  title: { fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
+  subtitle: { fontSize: 15, marginTop: 6 },
+  form: { width: '100%' },
+  sectionTitle: { fontSize: 13, fontWeight: '800', letterSpacing: 1, marginBottom: 12 },
+  submit: { marginTop: 8 },
+  linkButton: { marginTop: 24, marginBottom: 20, alignItems: 'center' },
+  linkText: { fontSize: 15 },
 });

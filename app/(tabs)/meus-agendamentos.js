@@ -38,7 +38,7 @@ export default function MeusAgendamentosScreen() {
     const { data, error } = await supabase
       .from('agendamentos')
       .select(
-        `id, data_agendamento, status, servico:servico_id(nome), barbeiro:barbeiro_id(nome_completo)`,
+        `id, data_agendamento, status, servico:servico_id(nome), barbeiro:barbeiro_id(perfis!perfil_id(nome_completo))`,
       )
       .eq('cliente_id', user.id)
       .in('status', ['pendente', 'confirmado'])
@@ -160,7 +160,7 @@ const AgendamentoItem = ({ item, theme, onCancel }) => {
           {item.servico?.nome || 'Serviço não encontrado'}
         </Text>
         <Text style={[styles.itemBarber, { color: theme.subtext }]}>
-          com {item.barbeiro?.nome_completo || 'Barbeiro não encontrado'}
+          com {item.barbeiro?.perfis?.nome_completo || 'Barbeiro não encontrado'}
         </Text>
         <Text style={[styles.itemDate, { color: theme.text }]}>
           {formatarData(item.data_agendamento)}

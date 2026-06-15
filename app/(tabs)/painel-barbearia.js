@@ -41,31 +41,40 @@ export default function PainelBarbeariaScreen() {
     const { data: barbeariaData, error } = await getBarbeariaByAdmin(user.id);
 
     if (error || !barbeariaData) {
-      showAlert('Erro', 'Você não possui uma barbearia cadastrada.', [
-        { text: 'OK', onPress: () => router.replace('/(auth)/login-barbearia') },
-      ]);
+      // Dono ainda sem barbearia: não derruba pro login; a tela mostra um
+      // convite para criar a barbearia (ver render quando !barbearia).
+      setBarbearia(null);
+      setLoading(false);
       return;
     }
 
     setBarbearia(barbeariaData);
 
-    const { count: agendamentosCount } = await supabase
-      .from('agendamentos')
-      .select('*', { count: 'exact', head: true })
-      .eq('barbearia_id', barbeariaData.id);
-
-    const hoje = new Date().toISOString().split('T')[0];
-    const { count: agendamentosHojeCount } = await supabase
-      .from('agendamentos')
-      .select('*', { count: 'exact', head: true })
-      .eq('barbearia_id', barbeariaData.id)
-      .gte('data_agendamento', `${hoje}T00:00:00`)
-      .lte('data_agendamento', `${hoje}T23:59:59`);
-
-    const { count: barbeirosCount } = await supabase
+    // Agendamentos não têm barbearia_id direto: contamos pelos barbeiros da barbearia
+    const { data: barbeirosList } = await supabase
       .from('barbeiros')
-      .select('*', { count: 'exact', head: true })
+      .select('id')
       .eq('barbearia_id', barbeariaData.id);
+    const barbeiroIds = (barbeirosList || []).map((b) => b.id);
+
+    let agendamentosCount = 0;
+    let agendamentosHojeCount = 0;
+    if (barbeiroIds.length > 0) {
+      const hoje = new Date().toISOString().split('T')[0];
+      const { count: total } = await supabase
+        .from('agendamentos')
+        .select('*', { count: 'exact', head: true })
+        .in('barbeiro_id', barbeiroIds);
+      agendamentosCount = total || 0;
+
+      const { count: hojeCount } = await supabase
+        .from('agendamentos')
+        .select('*', { count: 'exact', head: true })
+        .in('barbeiro_id', barbeiroIds)
+        .gte('data_agendamento', `${hoje}T00:00:00`)
+        .lte('data_agendamento', `${hoje}T23:59:59`);
+      agendamentosHojeCount = hojeCount || 0;
+    }
 
     const { count: servicosCount } = await supabase
       .from('servicos')
@@ -73,9 +82,9 @@ export default function PainelBarbeariaScreen() {
       .eq('barbearia_id', barbeariaData.id);
 
     setStats({
-      totalAgendamentos: agendamentosCount || 0,
-      agendamentosHoje: agendamentosHojeCount || 0,
-      totalBarbeiros: barbeirosCount || 0,
+      totalAgendamentos: agendamentosCount,
+      agendamentosHoje: agendamentosHojeCount,
+      totalBarbeiros: barbeiroIds.length,
       totalServicos: servicosCount || 0,
     });
 
@@ -115,10 +124,43 @@ export default function PainelBarbeariaScreen() {
 
   if (!barbearia) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <Text style={[styles.errorText, { color: theme.subtext }]}>
-          Erro ao carregar dados da barbearia
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor: theme.background,
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 24,
+          },
+        ]}
+      >
+        <Ionicons name="storefront-outline" size={64} color={theme.subtext} />
+        <Text
+          style={[
+            styles.errorText,
+            { color: theme.text, fontSize: 20, fontWeight: 'bold', marginTop: 16 },
+          ]}
+        >
+          Você ainda não tem uma barbearia
         </Text>
+        <Text style={[styles.errorText, { color: theme.subtext, marginTop: 8 }]}>
+          Crie a sua para cadastrar serviços, barbeiros e horários.
+        </Text>
+        <TouchableOpacity
+          style={{
+            backgroundColor: theme.primary,
+            paddingVertical: 14,
+            paddingHorizontal: 28,
+            borderRadius: 12,
+            marginTop: 24,
+          }}
+          onPress={() => router.push('/(tabs)/gerenciar-barbearia')}
+        >
+          <Text style={{ color: theme.background, fontWeight: 'bold', fontSize: 16 }}>
+            Criar minha barbearia
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -221,7 +263,7 @@ export default function PainelBarbeariaScreen() {
 
           <TouchableOpacity
             style={[styles.menuItem, { backgroundColor: theme.card, borderColor: theme.border }]}
-            onPress={() => showAlert('Em breve', 'Funcionalidade em desenvolvimento')}
+            onPress={() => router.push('/(tabs)/gerenciar-barbeiros')}
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="people-outline" size={24} color={theme.primary} />

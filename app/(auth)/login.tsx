@@ -1,19 +1,17 @@
-// Arquivo: app/(auth)/login.js (Com o novo design "Neon Blade" / "Cyber Sky")
-
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
 import { useAlert } from '../../contexts/AlertContext';
 import { useAppTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../supabaseClient';
@@ -21,7 +19,7 @@ import { supabase } from '../../supabaseClient';
 export default function LoginScreen() {
   const router = useRouter();
   const showAlert = useAlert();
-  const { theme } = useAppTheme(); // <<< 1. Pegamos as cores do tema ativo
+  const { theme } = useAppTheme();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,80 +31,56 @@ export default function LoginScreen() {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
-    });
-    // ========================================================================
-    // <<< A CORREÇÃO QUE VOCÊ PEDIU ESTÁ AQUI >>>
-    // ========================================================================
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      showAlert(
-        'Erro no Login', // Título
-        'Email ou senha inválidos. Por favor, tente novamente.', // Mensagem
-        [{ text: 'OK' }], // Array de botões
-      );
+      showAlert('Erro no Login', 'Email ou senha inválidos. Por favor, tente novamente.', [
+        { text: 'OK' },
+      ]);
     }
-
-    // Se o login for bem-sucedido, o onAuthStateChange no _layout.js cuidará do redirecionamento.
+    // Sucesso: o onAuthStateChange no _layout cuida do redirecionamento.
     setLoading(false);
   }
 
   return (
-    // KeyboardAvoidingView ajuda a tela a não ser coberta pelo teclado
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.container, { backgroundColor: theme.background }]} // <<< 2. Aplicamos a cor de fundo do tema
+      style={[styles.container, { backgroundColor: theme.background }]}
     >
       <View style={styles.header}>
-        {/* Logo central na tela de login */}
         <Image
           source={require('../../assets/images/logo.jpg')}
           style={styles.loginLogo}
           resizeMode="contain"
         />
-        <Text style={[styles.subtitle, { color: theme.subtext, marginTop: 8 }]}>
-          Bem-vindo de volta!
-        </Text>
+        <Text style={[styles.subtitle, { color: theme.subtext }]}>Bem-vindo de volta!</Text>
       </View>
 
       <View style={styles.form}>
-        <TextInput
-          style={[
-            styles.input,
-            { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
-          ]}
-          placeholder="Email"
-          placeholderTextColor={theme.subtext}
+        <Input
+          label="Email"
+          placeholder="seu@email.com"
+          icon="mail-outline"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
+          autoCorrect={false}
           keyboardType="email-address"
         />
-        <TextInput
-          style={[
-            styles.input,
-            { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
-          ]}
-          placeholder="Senha"
-          placeholderTextColor={theme.subtext}
+        <Input
+          label="Senha"
+          placeholder="••••••••"
+          icon="lock-closed-outline"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
         />
-
-        {/* Botão Principal com o novo estilo */}
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: theme.primary }]}
+        <Button
+          title="Entrar"
+          size="lg"
+          loading={loading}
           onPress={signInWithEmail}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color={theme.background} />
-          ) : (
-            <Text style={[styles.buttonText, { color: theme.background }]}>Entrar</Text>
-          )}
-        </TouchableOpacity>
+          style={styles.entrar}
+        />
       </View>
 
       <TouchableOpacity style={styles.linkButton} onPress={() => router.push('/(auth)/cadastro')}>
@@ -116,78 +90,25 @@ export default function LoginScreen() {
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.barbeariaButton, { borderColor: theme.primary }]}
+      <Button
+        title="Sou uma Barbearia"
+        variant="outline"
+        size="lg"
         onPress={() => router.push('/(auth)/login-barbearia')}
-      >
-        <Text style={[styles.barbeariaButtonText, { color: theme.primary }]}>
-          Sou uma Barbearia
-        </Text>
-      </TouchableOpacity>
+        style={styles.barbeariaBtn}
+      />
     </KeyboardAvoidingView>
   );
 }
 
-// Estilos completamente refeitos para o novo design
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 20,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  title: {
-    fontSize: 40,
-    fontWeight: 'bold',
-    marginTop: 10,
-  },
-  subtitle: {
-    fontSize: 18,
-    marginTop: 5,
-  },
-  form: {
-    width: '100%',
-  },
-  loginLogo: {
-    width: 220,
-    height: 88,
-  },
-  input: {
-    padding: 18,
-    borderRadius: 12,
-    marginBottom: 15,
-    fontSize: 16,
-    borderWidth: 1,
-  },
-  button: {
-    padding: 18,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  buttonText: {
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  linkButton: {
-    marginTop: 30,
-    alignItems: 'center',
-  },
-  linkText: {
-    fontSize: 16,
-  },
-  barbeariaButton: {
-    marginTop: 15,
-    padding: 18,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 2,
-  },
-  barbeariaButtonText: {
-    fontWeight: '700',
-    fontSize: 16,
-  },
+  container: { flex: 1, justifyContent: 'center', padding: 24 },
+  header: { alignItems: 'center', marginBottom: 36 },
+  subtitle: { fontSize: 18, marginTop: 10 },
+  form: { width: '100%' },
+  loginLogo: { width: 220, height: 88 },
+  entrar: { marginTop: 4 },
+  linkButton: { marginTop: 28, alignItems: 'center' },
+  linkText: { fontSize: 16 },
+  barbeariaBtn: { marginTop: 16 },
 });

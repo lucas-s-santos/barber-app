@@ -9,14 +9,21 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { MaskedTextInput } from 'react-native-mask-text';
 
 import { useAlert } from '../../contexts/AlertContext';
 import { useAppTheme } from '../../contexts/ThemeContext'; // Importe o useAppTheme
 import { supabase } from '../../supabaseClient';
+
+// Máscara de hora HH:MM feita na mão (sem biblioteca, evita loop de render)
+function formatarHora(text) {
+  const d = text.replace(/\D/g, '').slice(0, 4);
+  if (d.length > 2) return `${d.slice(0, 2)}:${d.slice(2)}`;
+  return d;
+}
 
 const DIAS_SEMANA = [
   { id: 1, nome: 'Segunda-feira' },
@@ -69,17 +76,67 @@ export default function ConfigurarHorariosScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      const getUser = async () => {
+      const init = async () => {
         const {
           data: { user },
         } = await supabase.auth.getUser();
-        if (user) {
-          setBarbeiroId(user.id);
-          fetchConfiguracoes(user.id);
+        if (!user) {
+          setLoading(false);
+          return;
         }
+        // Usa o vínculo barbeiros.id (não o perfis.id) — é o que a agenda e o RLS esperam
+        const { data: barbeiro } = await supabase
+          .from('barbeiros')
+          .select('id')
+          .eq('perfil_id', user.id)
+          .limit(1)
+          .maybeSingle();
+        if (!barbeiro) {
+          // Talvez seja o DONO querendo também atender como barbeiro
+          const { data: minhaBarbearia } = await supabase
+            .from('barbearias')
+            .select('id')
+            .eq('admin_id', user.id)
+            .maybeSingle();
+          setBarbeiroId(null);
+          setLoading(false);
+          if (minhaBarbearia) {
+            showAlert(
+              'Atender como barbeiro?',
+              'Você é dono desta barbearia. Quer se cadastrar como barbeiro para configurar seus horários de atendimento?',
+              [
+                { text: 'Agora não', style: 'cancel', onPress: () => router.back() },
+                {
+                  text: 'Sim, atender',
+                  onPress: async () => {
+                    const { data: novoId, error } = await supabase.rpc(
+                      'vincular_barbeiro_por_email',
+                      { p_email: user.email, p_barbearia_id: minhaBarbearia.id },
+                    );
+                    if (error) {
+                      showAlert('Erro', error.message);
+                      return;
+                    }
+                    setBarbeiroId(novoId);
+                    fetchConfiguracoes(novoId);
+                  },
+                },
+              ],
+            );
+          } else {
+            showAlert(
+              'Você ainda não é barbeiro',
+              'Esta tela é para barbeiros configurarem seus horários. Peça ao dono para te adicionar como barbeiro da barbearia.',
+              [{ text: 'OK', onPress: () => router.back() }],
+            );
+          }
+          return;
+        }
+        setBarbeiroId(barbeiro.id);
+        fetchConfiguracoes(barbeiro.id);
       };
-      getUser();
-    }, [fetchConfiguracoes]),
+      init();
+    }, [fetchConfiguracoes, showAlert, router]),
   );
 
   const handleInputChange = (diaId, campo, valor) => {
@@ -222,10 +279,10 @@ export default function ConfigurarHorariosScreen() {
 const HorarioInput = ({ label, valor, onChange, theme }) => (
   <View style={styles.inputGroup}>
     <Text style={[styles.label, { color: theme.subtext }]}>{label}</Text>
-    <MaskedTextInput
-      mask="99:99"
-      onChangeText={onChange}
+    <TextInput
+      onChangeText={(text) => onChange(formatarHora(text))}
       value={valor}
+      maxLength={5}
       style={[
         styles.input,
         { backgroundColor: theme.background, color: theme.text, borderColor: theme.border },

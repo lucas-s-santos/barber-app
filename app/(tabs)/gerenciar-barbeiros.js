@@ -108,79 +108,29 @@ export default function GerenciarBarbeiros() {
         showAlert('Campo vazio', 'Digite o email do barbeiro');
         return;
       }
-
       if (!emailConvite.includes('@')) {
         showAlert('Email inválido', 'Digite um email válido');
         return;
       }
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      // Adiciona direto: a função no banco promove o usuário a barbeiro
+      // e cria o vínculo com a barbearia (a pessoa precisa já ter conta).
+      const { error } = await supabase.rpc('vincular_barbeiro_por_email', {
+        p_email: emailConvite.trim().toLowerCase(),
+        p_barbearia_id: barbearia.id,
+      });
 
-      // Verificar se o email já tem um perfil cadastrado
-      const { data: perfilBarbeiro } = await supabase
-        .from('perfis')
-        .select('id, papel')
-        .eq('email', emailConvite.toLowerCase())
-        .single();
+      if (error) throw error;
 
-      if (perfilBarbeiro && perfilBarbeiro.papel !== 'barbeiro') {
-        showAlert(
-          'Email inválido',
-          'Este email está registrado como cliente ou dono. Use um email de barbeiro.',
-        );
-        return;
-      }
-
-      // Verificar se já existe convite pendente
-      const { data: conviteExistente } = await supabase
-        .from('convites_barbeiros')
-        .select('*')
-        .eq('barbearia_id', barbearia.id)
-        .eq('barbeiro_email', emailConvite.toLowerCase())
-        .eq('status', 'pendente')
-        .single();
-
-      if (conviteExistente) {
-        showAlert('Convite já enviado', 'Já existe um convite pendente para este email');
-        return;
-      }
-
-      // Verificar se o barbeiro já está vinculado
-      if (perfilBarbeiro) {
-        const { data: vinculoExistente } = await supabase
-          .from('barbeiros')
-          .select('*')
-          .eq('barbearia_id', barbearia.id)
-          .eq('perfil_id', perfilBarbeiro.id)
-          .single();
-
-        if (vinculoExistente) {
-          showAlert('Barbeiro já vinculado', 'Este barbeiro já trabalha na sua barbearia');
-          return;
-        }
-      }
-
-      // Criar convite
-      const { error: conviteError } = await supabase.from('convites_barbeiros').insert([
-        {
-          barbearia_id: barbearia.id,
-          dono_id: user.id,
-          barbeiro_email: emailConvite.toLowerCase(),
-          barbeiro_id: perfilBarbeiro?.id || null,
-          status: 'pendente',
-        },
-      ]);
-
-      if (conviteError) throw conviteError;
-
-      showAlert('Convite enviado!', 'O barbeiro receberá uma notificação para aceitar');
+      showAlert(
+        'Barbeiro adicionado!',
+        'Ele já faz parte da sua barbearia. Peça para ele entrar no app e configurar os horários de atendimento.',
+      );
       setEmailConvite('');
       setModalVisible(false);
       carregarDados();
     } catch (error) {
-      showAlert('Erro ao enviar convite', error.message);
+      showAlert('Erro ao adicionar barbeiro', error.message);
     } finally {
       setEnviandoConvite(false);
     }
@@ -351,14 +301,15 @@ export default function GerenciarBarbeiros() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.text }]}>Convidar Barbeiro</Text>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Adicionar Barbeiro</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Ionicons name="close" size={24} color={theme.text} />
               </TouchableOpacity>
             </View>
 
             <Text style={[styles.modalLabel, { color: theme.textSecondary }]}>
-              Digite o email do barbeiro que deseja convidar:
+              Digite o e-mail de um usuário já cadastrado no app. Ele será adicionado como barbeiro
+              da sua barbearia:
             </Text>
 
             <TextInput
@@ -390,7 +341,7 @@ export default function GerenciarBarbeiros() {
                 {enviandoConvite ? (
                   <ActivityIndicator color="white" />
                 ) : (
-                  <Text style={[styles.modalButtonText, { color: 'white' }]}>Enviar Convite</Text>
+                  <Text style={[styles.modalButtonText, { color: 'white' }]}>Adicionar</Text>
                 )}
               </TouchableOpacity>
             </View>

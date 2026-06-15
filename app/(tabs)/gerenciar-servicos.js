@@ -24,6 +24,7 @@ export default function GerenciarServicosScreen() {
   const showAlert = useAlert();
   const { theme } = useAppTheme(); // Use o hook do tema
   const [servicos, setServicos] = useState([]);
+  const [barbeariaId, setBarbeariaId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -36,9 +37,29 @@ export default function GerenciarServicosScreen() {
 
   const fetchServicos = useCallback(async () => {
     setLoading(true);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    // Descobre a barbearia do dono e filtra os serviços por ela (multi-tenant)
+    const { data: barb } = await supabase
+      .from('barbearias')
+      .select('id')
+      .eq('admin_id', user.id)
+      .single();
+    if (!barb) {
+      showAlert('Sem barbearia', 'Você ainda não tem uma barbearia cadastrada.');
+      setLoading(false);
+      return;
+    }
+    setBarbeariaId(barb.id);
     const { data, error } = await supabase
       .from('servicos')
       .select('*')
+      .eq('barbearia_id', barb.id)
       .order('nome', { ascending: true });
 
     if (error) {
@@ -49,7 +70,11 @@ export default function GerenciarServicosScreen() {
     setLoading(false);
   }, [showAlert]);
 
-  useFocusEffect(fetchServicos);
+  useFocusEffect(
+    useCallback(() => {
+      fetchServicos();
+    }, [fetchServicos]),
+  );
 
   const handleAddNew = () => {
     setServicoAtual(null);
@@ -91,7 +116,10 @@ export default function GerenciarServicosScreen() {
         .eq('id', servicoAtual.id);
       error = updateError;
     } else {
-      const { error: insertError } = await supabase.from('servicos').insert(servicoData);
+      // Novo serviço precisa do barbearia_id (senão o RLS bloqueia)
+      const { error: insertError } = await supabase
+        .from('servicos')
+        .insert({ ...servicoData, barbearia_id: barbeariaId, ativo: true });
       error = insertError;
     }
 

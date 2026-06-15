@@ -27,20 +27,27 @@ export default function TabsLayout() {
   const { theme } = useAppTheme();
 
   const fetchAndSetUserRole = useCallback(async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user) {
-      const { data: profile } = await supabase
-        .from('perfis')
-        .select('papel')
-        .eq('id', user.id)
-        .single();
-      setUserRole(profile ? (profile.papel as UserRole) : 'cliente');
-    } else {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('perfis')
+          .select('papel')
+          .eq('id', user.id)
+          .single();
+        setUserRole(profile ? (profile.papel as UserRole) : 'cliente');
+      } else {
+        setUserRole(null);
+      }
+    } catch {
+      // Se a validação da sessão falhar (ex.: token expirado/sem rede),
+      // não trava: assume sem papel e deixa o app seguir.
       setUserRole(null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -135,7 +142,6 @@ export default function TabsLayout() {
         <Tabs.Screen name="historico-agendamentos" options={{ href: null }} />
         <Tabs.Screen name="barbearias-lista" options={{ href: null }} />
         <Tabs.Screen name="barbearias-mapa" options={{ href: null }} />
-        <Tabs.Screen name="barbearias-mapa.native" options={{ href: null }} />
         <Tabs.Screen name="barbearia-detalhes" options={{ href: null }} />
         <Tabs.Screen name="painel-barbearia" options={{ href: null }} />
         <Tabs.Screen name="notificacoes" options={{ href: null }} />
@@ -209,7 +215,6 @@ export default function TabsLayout() {
         <Tabs.Screen name="historico-agendamentos" options={{ href: null }} />
         <Tabs.Screen name="barbearias-lista" options={{ href: null }} />
         <Tabs.Screen name="barbearias-mapa" options={{ href: null }} />
-        <Tabs.Screen name="barbearias-mapa.native" options={{ href: null }} />
         <Tabs.Screen name="barbearia-detalhes" options={{ href: null }} />
         <Tabs.Screen name="notificacoes" options={{ href: null }} />
         <Tabs.Screen name="ajuda" options={{ href: null }} />
@@ -269,7 +274,6 @@ export default function TabsLayout() {
         <Tabs.Screen name="historico-agendamentos" options={{ href: null }} />
         <Tabs.Screen name="barbearias-lista" options={{ href: null }} />
         <Tabs.Screen name="barbearias-mapa" options={{ href: null }} />
-        <Tabs.Screen name="barbearias-mapa.native" options={{ href: null }} />
         <Tabs.Screen name="barbearia-detalhes" options={{ href: null }} />
         <Tabs.Screen name="painel-barbearia" options={{ href: null }} />
         <Tabs.Screen name="notificacoes" options={{ href: null }} />

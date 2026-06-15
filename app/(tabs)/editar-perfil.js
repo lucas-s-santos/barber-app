@@ -10,14 +10,22 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { MaskedTextInput } from 'react-native-mask-text';
 
 import { useAlert } from '../../contexts/AlertContext';
 import { useAppTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../supabaseClient';
+
+// Máscara de data DD/MM/AAAA feita na mão (sem biblioteca, evita loop de render)
+function formatarData(text) {
+  const d = text.replace(/\D/g, '').slice(0, 8);
+  if (d.length > 4) return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
+  if (d.length > 2) return `${d.slice(0, 2)}/${d.slice(2)}`;
+  return d;
+}
 
 export default function EditarPerfilScreen() {
   const router = useRouter();
@@ -67,8 +75,8 @@ export default function EditarPerfilScreen() {
             .select('id, foto_base64')
             .eq('barbeiro_id', user.id);
 
-          if (portfolioError) throw portfolioError;
-          setPortfolio(portfolioData || []);
+          // portfolio_barbeiro é opcional: se a tabela não existir, não quebra o perfil
+          if (!portfolioError) setPortfolio(portfolioData || []);
         }
       }
     } catch (error) {
@@ -233,7 +241,7 @@ export default function EditarPerfilScreen() {
 
       <View style={styles.form}>
         <Text style={[styles.label, { color: theme.subtext }]}>Nome Completo</Text>
-        <MaskedTextInput
+        <TextInput
           style={[
             styles.input,
             { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
@@ -243,10 +251,12 @@ export default function EditarPerfilScreen() {
         />
 
         <Text style={[styles.label, { color: theme.subtext }]}>Data de Nascimento</Text>
-        <MaskedTextInput
-          mask="99/99/9999"
-          onChangeText={(text) => setDataNascimento(text)}
+        <TextInput
+          onChangeText={(text) => setDataNascimento(formatarData(text))}
           value={dataNascimento}
+          maxLength={10}
+          placeholder="DD/MM/AAAA"
+          placeholderTextColor={theme.subtext}
           style={[
             styles.input,
             { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
@@ -255,7 +265,7 @@ export default function EditarPerfilScreen() {
         />
 
         <Text style={[styles.label, { color: theme.subtext }]}>Telefone</Text>
-        <MaskedTextInput
+        <TextInput
           style={[
             styles.input,
             { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },

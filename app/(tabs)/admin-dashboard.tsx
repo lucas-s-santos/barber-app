@@ -9,8 +9,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import ThemedText from '../../components/themed-text';
-import ThemedView from '../../components/themed-view';
+import { ThemedText } from '../../components/themed-text';
+import { ThemedView } from '../../components/themed-view';
 import { useAppTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../supabaseClient';
 
@@ -166,7 +166,9 @@ const AdminDashboard = () => {
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <View style={styles.card}>
-                <ThemedText style={styles.cardTitle}>{item.nome || 'Sem nome'}</ThemedText>
+                <ThemedText style={styles.cardTitle}>
+                  {item.nome_barbearia || 'Sem nome'}
+                </ThemedText>
                 <ThemedText style={styles.cardSubtitle}>
                   {item.endereco || 'Endereço não informado'}
                 </ThemedText>

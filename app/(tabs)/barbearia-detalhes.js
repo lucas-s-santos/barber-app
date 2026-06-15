@@ -46,7 +46,7 @@ export default function BarbeariaDetalhesScreen() {
 
     const { data: barbeirosData } = await supabase
       .from('barbeiros')
-      .select('*, perfis(*)')
+      .select('*, perfis!perfil_id(*)')
       .eq('barbearia_id', id);
     if (barbeirosData) {
       setBarbeiros(barbeirosData);

@@ -1,3 +1,5 @@
+// Versão NATIVA (Android/iOS) do mapa de barbearias — usa react-native-maps.
+// Fica em components/ (fora de app/) para o Metro NÃO incluir no bundle web.
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
@@ -14,12 +16,12 @@ import {
 import MapView, { Marker } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useAppTheme } from '../../contexts/ThemeContext';
-import { getAllBarbearias } from '../../supabaseClient';
+import { useAppTheme } from '../contexts/ThemeContext';
+import { getAllBarbearias } from '../supabaseClient';
 
 const { width, height } = Dimensions.get('window');
 
-export default function BarbeariasMapaScreen() {
+export default function BarbeariasMapView() {
   const router = useRouter();
   const { theme } = useAppTheme();
 
@@ -41,7 +43,6 @@ export default function BarbeariasMapaScreen() {
           longitudeDelta: 0.1,
         });
       } else {
-        // Se não der permissão, usa localização padrão (São Paulo)
         setRegion({
           latitude: -23.5505,
           longitude: -46.6333,
@@ -51,7 +52,6 @@ export default function BarbeariasMapaScreen() {
       }
     } catch (error) {
       console.log('Erro ao obter localização:', error);
-      // Em caso de erro, usa localização padrão
       setRegion({
         latitude: -23.5505,
         longitude: -46.6333,
@@ -158,15 +158,8 @@ export default function BarbeariasMapaScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  map: {
-    width: width,
-    height: height,
-  },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  map: { width, height },
   headerOverlay: {
     position: 'absolute',
     left: 0,
@@ -225,9 +218,5 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  emptyText: {
-    fontSize: 14,
-    marginTop: 10,
-    textAlign: 'center',
-  },
+  emptyText: { fontSize: 14, marginTop: 10, textAlign: 'center' },
 });

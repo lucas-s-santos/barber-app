@@ -3,18 +3,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
+
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
 import { useAlert } from '../../contexts/AlertContext';
 import { useAppTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../supabaseClient';
@@ -33,78 +34,47 @@ export default function CadastroDonoBarbearia() {
     telefone: '',
     nomeBarbearia: '',
   });
+  const set = (campo: string, valor: string) => setFormData((p) => ({ ...p, [campo]: valor }));
 
   const handleCadastro = async () => {
     try {
       setLoading(true);
-
-      // Validações
       if (!formData.email || !formData.senha || !formData.nomeCompleto || !formData.nomeBarbearia) {
         showAlert('Campos obrigatórios', 'Preencha todos os campos obrigatórios');
         return;
       }
-
       if (!formData.email.includes('@')) {
         showAlert('Email inválido', 'Digite um email válido');
         return;
       }
-
       if (formData.senha.length < 6) {
         showAlert('Senha curta', 'A senha deve ter no mínimo 6 caracteres');
         return;
       }
-
       if (formData.senha !== formData.confirmarSenha) {
         showAlert('Senhas diferentes', 'As senhas não coincidem');
         return;
       }
 
-      // Criar usuário no Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // O gatilho handle_new_user cria o perfil (dono) e a barbearia via options.data.
+      const { error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.senha,
+        options: {
+          data: {
+            nome_completo: formData.nomeCompleto,
+            telefone: formData.telefone,
+            papel: 'dono_barbearia',
+            nome_barbearia: formData.nomeBarbearia,
+          },
+        },
       });
-
       if (authError) throw authError;
-
-      if (!authData.user) {
-        showAlert('Erro no Cadastro', 'Não foi possível criar o usuário. Tente novamente.');
-        return;
-      }
-
-      // Criar perfil como dono_barbearia
-      const { error: perfilError } = await supabase.from('perfis').insert([
-        {
-          id: authData.user.id,
-          email: formData.email,
-          nome_completo: formData.nomeCompleto,
-          telefone: formData.telefone,
-          papel: 'dono_barbearia',
-        },
-      ]);
-
-      if (perfilError) throw perfilError;
-
-      // Criar barbearia inicial
-      const { error: barbeariaError } = await supabase.from('barbearias').insert([
-        {
-          nome_barbearia: formData.nomeBarbearia,
-          admin_id: authData.user.id,
-          endereco: '', // Será preenchido depois
-        },
-      ]);
-
-      if (barbeariaError) throw barbeariaError;
 
       showAlert(
         'Cadastro Realizado!',
         'Sua conta foi criada com sucesso. Faça login para continuar.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/login-dono-barbearia'),
-          },
-        ],
+        [{ text: 'OK', onPress: () => router.replace('/login-dono-barbearia') }],
       );
     } catch (error: any) {
       showAlert('Erro no Cadastro', error.message);
@@ -123,10 +93,14 @@ export default function CadastroDonoBarbearia() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={26} color={theme.text} />
+          </TouchableOpacity>
+
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color={theme.text} />
-            </TouchableOpacity>
+            <View style={[styles.badge, { backgroundColor: theme.goldSoft }]}>
+              <Ionicons name="storefront" size={30} color={theme.gold} />
+            </View>
             <Text style={[styles.title, { color: theme.text }]}>Cadastro de Dono</Text>
             <Text style={[styles.subtitle, { color: theme.subtext }]}>
               Crie sua conta e gerencie sua barbearia
@@ -134,117 +108,64 @@ export default function CadastroDonoBarbearia() {
           </View>
 
           <View style={styles.form}>
-            {/* Nome Completo */}
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, { color: theme.text }]}>Nome Completo *</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
-                ]}
-                value={formData.nomeCompleto}
-                onChangeText={(text) => setFormData((prev) => ({ ...prev, nomeCompleto: text }))}
-                placeholder="Digite seu nome completo"
-                placeholderTextColor={theme.icon}
-                autoCapitalize="words"
-              />
-            </View>
+            <Input
+              label="Nome completo *"
+              icon="person-outline"
+              placeholder="Seu nome"
+              value={formData.nomeCompleto}
+              onChangeText={(t) => set('nomeCompleto', t)}
+              autoCapitalize="words"
+            />
+            <Input
+              label="Email *"
+              icon="mail-outline"
+              placeholder="seu@email.com"
+              value={formData.email}
+              onChangeText={(t) => set('email', t)}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <Input
+              label="Telefone"
+              icon="call-outline"
+              placeholder="(00) 00000-0000"
+              value={formData.telefone}
+              onChangeText={(t) => set('telefone', t)}
+              keyboardType="phone-pad"
+            />
+            <Input
+              label="Nome da barbearia *"
+              icon="cut-outline"
+              placeholder="Nome da sua barbearia"
+              value={formData.nomeBarbearia}
+              onChangeText={(t) => set('nomeBarbearia', t)}
+            />
+            <Input
+              label="Senha *"
+              icon="lock-closed-outline"
+              placeholder="Mínimo 6 caracteres"
+              value={formData.senha}
+              onChangeText={(t) => set('senha', t)}
+              secureTextEntry
+            />
+            <Input
+              label="Confirmar senha *"
+              icon="lock-closed-outline"
+              placeholder="Digite a senha novamente"
+              value={formData.confirmarSenha}
+              onChangeText={(t) => set('confirmarSenha', t)}
+              secureTextEntry
+            />
 
-            {/* Email */}
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, { color: theme.text }]}>Email *</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
-                ]}
-                value={formData.email}
-                onChangeText={(text) => setFormData((prev) => ({ ...prev, email: text }))}
-                placeholder="seu@email.com"
-                placeholderTextColor={theme.icon}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
-
-            {/* Telefone */}
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, { color: theme.text }]}>Telefone</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
-                ]}
-                value={formData.telefone}
-                onChangeText={(text) => setFormData((prev) => ({ ...prev, telefone: text }))}
-                placeholder="(00) 00000-0000"
-                placeholderTextColor={theme.icon}
-                keyboardType="phone-pad"
-              />
-            </View>
-
-            {/* Nome da Barbearia */}
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, { color: theme.text }]}>Nome da Barbearia *</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
-                ]}
-                value={formData.nomeBarbearia}
-                onChangeText={(text) => setFormData((prev) => ({ ...prev, nomeBarbearia: text }))}
-                placeholder="Nome da sua barbearia"
-                placeholderTextColor={theme.icon}
-              />
-            </View>
-
-            {/* Senha */}
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, { color: theme.text }]}>Senha *</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
-                ]}
-                value={formData.senha}
-                onChangeText={(text) => setFormData((prev) => ({ ...prev, senha: text }))}
-                placeholder="Mínimo 6 caracteres"
-                placeholderTextColor={theme.icon}
-                secureTextEntry
-              />
-            </View>
-
-            {/* Confirmar Senha */}
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, { color: theme.text }]}>Confirmar Senha *</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { backgroundColor: theme.card, color: theme.text, borderColor: theme.border },
-                ]}
-                value={formData.confirmarSenha}
-                onChangeText={(text) => setFormData((prev) => ({ ...prev, confirmarSenha: text }))}
-                placeholder="Digite a senha novamente"
-                placeholderTextColor={theme.icon}
-                secureTextEntry
-              />
-            </View>
-
-            {/* Botão Cadastrar */}
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: theme.primary }]}
+            <Button
+              title="Criar Conta"
+              size="lg"
+              loading={loading}
               onPress={handleCadastro}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text style={styles.buttonText}>Criar Conta</Text>
-              )}
-            </TouchableOpacity>
+              style={styles.submit}
+            />
 
-            {/* Link para Login */}
             <TouchableOpacity
               style={styles.linkContainer}
               onPress={() => router.push('/login-dono-barbearia')}
@@ -262,64 +183,23 @@ export default function CadastroDonoBarbearia() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 20,
-    paddingTop: 60,
-  },
-  header: {
-    marginBottom: 40,
-  },
-  backButton: {
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-  },
-  form: {
-    flex: 1,
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 14,
-    fontSize: 16,
-  },
-  button: {
-    borderRadius: 10,
-    padding: 16,
+  container: { flex: 1 },
+  scrollContent: { flexGrow: 1, padding: 24, paddingTop: 90, justifyContent: 'center' },
+  backButton: { position: 'absolute', top: 50, left: 18, padding: 6, zIndex: 10 },
+  header: { alignItems: 'center', marginBottom: 28 },
+  badge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 20,
+    justifyContent: 'center',
+    marginBottom: 14,
   },
-  buttonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  linkContainer: {
-    alignItems: 'center',
-  },
-  linkText: {
-    fontSize: 14,
-  },
-  linkHighlight: {
-    fontWeight: 'bold',
-  },
+  title: { fontSize: 30, fontWeight: 'bold' },
+  subtitle: { fontSize: 15, marginTop: 6, textAlign: 'center' },
+  form: { width: '100%' },
+  submit: { marginTop: 8 },
+  linkContainer: { alignItems: 'center', marginTop: 22 },
+  linkText: { fontSize: 15 },
+  linkHighlight: { fontWeight: 'bold' },
 });

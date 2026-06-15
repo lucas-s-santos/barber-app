@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,13 +11,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import ThemedText from '../../components/themed-text';
-import ThemedView from '../../components/themed-view';
+import { ThemedText } from '../../components/themed-text';
+import { ThemedView } from '../../components/themed-view';
 import { useAppTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../supabaseClient';
 
 export default function MeusServicos() {
   const { theme } = useAppTheme();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [servicos, setServicos] = useState([]);
@@ -154,6 +156,16 @@ export default function MeusServicos() {
     <ThemedView style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
         <ThemedText style={styles.title}>Meus Serviços</ThemedText>
+
+        <TouchableOpacity
+          style={[styles.horariosButton, { borderColor: theme.primary }]}
+          onPress={() => router.push('/(tabs)/configurar-horarios')}
+        >
+          <Ionicons name="time-outline" size={20} color={theme.primary} />
+          <ThemedText style={[styles.horariosButtonText, { color: theme.primary }]}>
+            Configurar meus horários
+          </ThemedText>
+        </TouchableOpacity>
 
         {!showForm ? (
           <>
@@ -314,6 +326,20 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 16,
+  },
+  horariosButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1.5,
+    borderRadius: 10,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  horariosButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
   emptyText: {
     fontSize: 14,

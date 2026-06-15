@@ -8,8 +8,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import ThemedText from '../../components/themed-text';
-import ThemedView from '../../components/themed-view';
+import { ThemedText } from '../../components/themed-text';
+import { ThemedView } from '../../components/themed-view';
 import { useAppTheme } from '../../contexts/ThemeContext';
 import { supabase } from '../../supabaseClient';
 
@@ -44,7 +44,7 @@ export default function GerenciarBarbearia() {
       if (data) {
         setBarbearia(data);
         setFormData({
-          nome: data.nome || '',
+          nome: data.nome_barbearia || '',
           endereco: data.endereco || '',
           telefone: data.telefone || '',
           descricao: data.descricao || '',
@@ -67,18 +67,27 @@ export default function GerenciarBarbearia() {
       setSaving(true);
       const { data: userData } = await supabase.auth.getUser();
 
+      // A coluna no banco é nome_barbearia (não "nome")
+      const payload = {
+        nome_barbearia: formData.nome.trim(),
+        endereco: formData.endereco,
+        telefone: formData.telefone,
+        descricao: formData.descricao,
+      };
+
       if (barbearia) {
         // Atualizar
-        const { error } = await supabase.from('barbearias').update(formData).eq('id', barbearia.id);
+        const { error } = await supabase.from('barbearias').update(payload).eq('id', barbearia.id);
 
         if (error) throw error;
         Alert.alert('Sucesso', 'Barbearia atualizada!');
       } else {
         // Criar
         const { error } = await supabase.from('barbearias').insert({
-          ...formData,
+          ...payload,
           admin_id: userData.user.id,
           criada_por: userData.user.id,
+          ativo: true,
         });
 
         if (error) throw error;

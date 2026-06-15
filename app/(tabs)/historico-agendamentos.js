@@ -30,10 +30,10 @@ export default function HistoricoAgendamentosScreen() {
     const { data, error } = await supabase
       .from('agendamentos')
       .select(
-        `id, data_agendamento, status, servico:servico_id(nome), barbeiro:barbeiro_id(nome_completo)`,
+        `id, data_agendamento, status, servico:servico_id(nome), barbeiro:barbeiro_id(perfis!perfil_id(nome_completo))`,
       )
       .eq('cliente_id', user.id)
-      .in('status', ['concluido', 'cancelado', 'ausente'])
+      .in('status', ['concluido', 'cancelado'])
       .order('data_agendamento', { ascending: false });
 
     if (error) showAlert('Erro', 'Não foi possível carregar seu histórico.');
@@ -173,9 +173,9 @@ const HistoricoItem = ({ item, theme }) => {
       style={[styles.itemCard, { backgroundColor: theme.card, borderLeftColor: statusStyle.color }]}
     >
       <View style={styles.itemInfo}>
-        <Text style={[styles.itemService, { color: theme.text }]}>{item.servico.nome}</Text>
+        <Text style={[styles.itemService, { color: theme.text }]}>{item.servico?.nome}</Text>
         <Text style={[styles.itemBarber, { color: theme.subtext }]}>
-          com {item.barbeiro.nome_completo}
+          com {item.barbeiro?.perfis?.nome_completo}
         </Text>
         <Text style={[styles.itemDate, { color: theme.text }]}>
           {formatarData(item.data_agendamento)}

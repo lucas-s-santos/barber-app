@@ -73,76 +73,80 @@ const StatCard = ({ icon, label, value, color, tooltip }) => {
 
 export default function DashboardScreen() {
   const { theme } = useAppTheme();
-  const showAlert = useAlert();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [servicoData, setServicoData] = useState([]);
   const [periodo, setPeriodo] = useState('mes');
 
-  const fetchDashboardData = useCallback(
-    async (periodoSelecionado) => {
-      try {
-        setLoading(true);
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) throw new Error('Usuário não autenticado.');
+  const fetchDashboardData = useCallback(async (periodoSelecionado) => {
+    try {
+      setLoading(true);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado.');
 
-        const hoje = new Date();
-        const endDate = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate(), 23, 59, 59);
-        let startDate;
+      const hoje = new Date();
+      const endDate = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate(), 23, 59, 59);
+      let startDate;
 
-        if (periodoSelecionado === 'semana') {
-          const diaDaSemana = hoje.getDay();
-          startDate = new Date(
-            hoje.getFullYear(),
-            hoje.getMonth(),
-            hoje.getDate() - diaDaSemana,
-            0,
-            0,
-            0,
-          );
-        } else if (periodoSelecionado === 'mes') {
-          startDate = new Date(hoje.getFullYear(), hoje.getMonth(), 1, 0, 0, 0);
-        } else if (periodoSelecionado === 'ano') {
-          startDate = new Date(hoje.getFullYear(), 0, 1, 0, 0, 0);
-        }
+      if (periodoSelecionado === 'semana') {
+        const diaDaSemana = hoje.getDay();
+        startDate = new Date(
+          hoje.getFullYear(),
+          hoje.getMonth(),
+          hoje.getDate() - diaDaSemana,
+          0,
+          0,
+          0,
+        );
+      } else if (periodoSelecionado === 'mes') {
+        startDate = new Date(hoje.getFullYear(), hoje.getMonth(), 1, 0, 0, 0);
+      } else if (periodoSelecionado === 'ano') {
+        startDate = new Date(hoje.getFullYear(), 0, 1, 0, 0, 0);
+      }
 
-        const { data: statsData, error: statsError } = await supabase.rpc('get_dashboard_stats', {
+      const { data: statsData, error: statsError } = await supabase.rpc('get_dashboard_stats', {
+        p_barbeiro_id: user.id,
+        p_start_date: startDate.toISOString(),
+        p_end_date: endDate.toISOString(),
+      });
+      if (statsError) throw statsError;
+      setStats(statsData[0]);
+
+      const { data: servicosData, error: servicosError } = await supabase.rpc(
+        'get_servicos_distribution',
+        {
           p_barbeiro_id: user.id,
           p_start_date: startDate.toISOString(),
           p_end_date: endDate.toISOString(),
-        });
-        if (statsError) throw statsError;
-        setStats(statsData[0]);
+        },
+      );
+      if (servicosError) throw servicosError;
 
-        const { data: servicosData, error: servicosError } = await supabase.rpc(
-          'get_servicos_distribution',
-          {
-            p_barbeiro_id: user.id,
-            p_start_date: startDate.toISOString(),
-            p_end_date: endDate.toISOString(),
-          },
-        );
-        if (servicosError) throw servicosError;
-
-        // Prepara os dados para o gráfico de pizza
-        const chartColors = ['#10B981', '#3B82F6', '#F97316', '#8B5CF6', '#EAB308'];
-        const pieData = servicosData.map((item, index) => ({
-          value: item.quantidade,
-          label: item.servico_nome,
-          color: chartColors[index % chartColors.length],
-          text: `${item.quantidade}`, // Mostra a quantidade no gráfico
-        }));
-        setServicoData(pieData);
-      } catch (error) {
-        showAlert('Erro ao Carregar Dashboard', error.message);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [showAlert],
-  );
+      // Prepara os dados para o gráfico de pizza
+      const chartColors = ['#10B981', '#3B82F6', '#F97316', '#8B5CF6', '#EAB308'];
+      const pieData = servicosData.map((item, index) => ({
+        value: item.quantidade,
+        label: item.servico_nome,
+        color: chartColors[index % chartColors.length],
+        text: `${item.quantidade}`, // Mostra a quantidade no gráfico
+      }));
+      setServicoData(pieData);
+    } catch (error) {
+      // Relatório não deve travar a navegação: sem dados/funções, mostra zerado.
+      console.log('Dashboard:', error.message);
+      setStats({
+        total_faturamento: 0,
+        total_agendamentos: 0,
+        ticket_medio: 0,
+        servico_mais_popular: null,
+      });
+      setServicoData([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
